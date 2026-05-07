@@ -1,0 +1,62 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies / build
+vendor/
+node_modules/
+.composer/
+
+# Runtime caches, temp, and logs
+*.log
+error_log
+logs/
+access-logs/
+tmp/
+storage/
+lscache/
+
+# cPanel / hosting system files
+.cagefs/
+.cl.selector/
+.cpanel/
+.cphorde/
+.htpasswds/
+.koality/
+.razor/
+.sitepad/
+.softaculous/
+.spamassassin/
+.ssh/
+.subaccounts/
+.trash/
+.pki/
+mail/
+ssl/
+public_ftp/
+
+# Shell/account files
+.bash_history
+.bash_logout
+.bash_profile
+.bashrc
+.lastlogin
+.contactemail
+.ftpquota
+.myimunify_id
+.spamassassinboxenable
+.spamassassinenable
+
+# IDE / local settings
+.vscode/
+
+# Backup/sync copies
+backups/
+repo_yedek/
+www/
+fezadan.org/
+etc/
+
+# Generated web runtime files
+public_html/error_log
