@@ -18,6 +18,14 @@ services:
     restart: unless-stopped
     ports:
       - "8000:80"
+    environment:
+      SITE_URL: http://localhost:8000
+      DB_HOST: db
+      DB_NAME: fezadano5_site
+      DB_USER: root
+      DB_PASS: root
+      DB_CHARSET: utf8mb4
+      APP_SECURITY_SALT: local-dev-change-me
     volumes:
       - .:/var/www/html
     depends_on:

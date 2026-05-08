@@ -14,10 +14,7 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 # .htaccess için mod_rewrite
 RUN a2enmod rewrite
 
-# Lokal config override
-COPY docker-php-config.php /var/www/html/app/Config/config.local.php
-
-# Entrypoint: config'i lokal için ayarla
+# Entrypoint
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 

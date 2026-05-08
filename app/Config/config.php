@@ -1,10 +1,47 @@
 <?php
-define('SITE_URL', 'http://localhost:8000');
-define('DB_HOST', 'db');
-define('DB_NAME', 'fezadano5_site');
-define('DB_USER', 'root');
-define('DB_PASS', 'root');
-define('DB_CHARSET', 'utf8mb4');
-$appSalt = getenv('APP_SECURITY_SALT') ?: 'local-dev-change-me';
-define('APP_SALT', $appSalt);
-define('CDN_URL', getenv('CDN_URL') ?: SITE_URL);
+if (!function_exists('env_value')) {
+    function env_value(string $key, string $default = ''): string
+    {
+        $value = getenv($key);
+        if ($value !== false && $value !== '') {
+            return (string)$value;
+        }
+
+        $envPath = defined('ROOT') ? ROOT . '/.env' : dirname(__DIR__, 2) . '/.env';
+        static $envCache = null;
+        if ($envCache === null) {
+            $envCache = [];
+            if (is_file($envPath)) {
+                $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    $trimmed = trim($line);
+                    if ($trimmed === '' || $trimmed[0] === '#' || strpos($trimmed, '=') === false) {
+                        continue;
+                    }
+                    [$name, $raw] = explode('=', $trimmed, 2);
+                    $name = trim($name);
+                    if ($name === '') {
+                        continue;
+                    }
+                    $envCache[$name] = trim(trim($raw), "\"'");
+                }
+            }
+        }
+
+        return $envCache[$key] ?? $default;
+    }
+}
+
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+$detectedHost = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$detectedSiteUrl = ($isHttps ? 'https://' : 'http://') . $detectedHost;
+
+define('SITE_URL', env_value('SITE_URL', $detectedSiteUrl));
+define('DB_HOST', env_value('DB_HOST', 'localhost'));
+define('DB_NAME', env_value('DB_NAME', ''));
+define('DB_USER', env_value('DB_USER', ''));
+define('DB_PASS', env_value('DB_PASS', ''));
+define('DB_CHARSET', env_value('DB_CHARSET', 'utf8mb4'));
+define('APP_SALT', env_value('APP_SECURITY_SALT', 'change-me'));
+define('CDN_URL', env_value('CDN_URL', SITE_URL));

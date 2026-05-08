@@ -57,6 +57,9 @@ repo_yedek/
 www/
 fezadan.org/
 etc/
+Fezadan-Previous/
 
 # Generated web runtime files
 public_html/error_log
+public_html/uploads/
+public_html/assets/uploads/
