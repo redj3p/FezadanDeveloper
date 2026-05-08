@@ -44,4 +44,4 @@ define('DB_USER', env_value('DB_USER', ''));
 define('DB_PASS', env_value('DB_PASS', ''));
 define('DB_CHARSET', env_value('DB_CHARSET', 'utf8mb4'));
 define('APP_SALT', env_value('APP_SECURITY_SALT', 'change-me'));
-define('CDN_URL', env_value('CDN_URL', SITE_URL));
+define('CDN_URL', env_value('CDN_URL', env_value('R2_PUBLIC_URL', SITE_URL)));
