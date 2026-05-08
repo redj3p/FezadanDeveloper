@@ -24,6 +24,21 @@ class R2Storage {
         return self::$instance;
     }
 
+    private function normalizeObjectKey(string $objectKey): string
+    {
+        $objectKey = trim($objectKey);
+        if ($objectKey === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $objectKey)) {
+            $path = (string)parse_url($objectKey, PHP_URL_PATH);
+            $objectKey = ltrim($path, '/');
+        }
+
+        return ltrim($objectKey, '/');
+    }
+
     public function __construct() {
         $envPath = ROOT . '/.env';
         $env = [];
@@ -156,7 +171,89 @@ class R2Storage {
      * Dosyanın tam public URL'sini döndürür
      */
     public function getFileUrl($objectKey) {
-        return rtrim($this->publicUrl, '/') . '/' . $objectKey;
+        if (preg_match('#^https?://#i', (string)$objectKey)) {
+            return (string)$objectKey;
+        }
+        return rtrim($this->publicUrl, '/') . '/' . $this->normalizeObjectKey((string)$objectKey);
+    }
+
+    public function streamView($objectKey, $displayName = 'belge') {
+        try {
+            if (ob_get_level()) ob_end_clean();
+
+            $normalizedKey = $this->normalizeObjectKey((string)$objectKey);
+            if ($normalizedKey === '') {
+                http_response_code(404);
+                echo 'Belge bulunamadı.';
+                exit;
+            }
+
+            $getParams = [
+                'Bucket' => $this->bucketName,
+                'Key'    => $normalizedKey,
+            ];
+
+            $statusCode = 200;
+            $contentRange = null;
+            $contentLength = null;
+
+            $rangeHeader = $_SERVER['HTTP_RANGE'] ?? '';
+            if ($rangeHeader !== '' && preg_match('/bytes=(\d*)-(\d*)/i', $rangeHeader, $matches)) {
+                $head = $this->client->headObject([
+                    'Bucket' => $this->bucketName,
+                    'Key'    => $normalizedKey,
+                ]);
+                $fileSize = (int)($head['ContentLength'] ?? 0);
+
+                if ($fileSize > 0) {
+                    $start = $matches[1] === '' ? 0 : (int)$matches[1];
+                    $end = $matches[2] === '' ? ($fileSize - 1) : (int)$matches[2];
+
+                    if ($start >= $fileSize) {
+                        http_response_code(416);
+                        header('Content-Range: bytes */' . $fileSize);
+                        exit;
+                    }
+
+                    $end = min($end, $fileSize - 1);
+                    if ($end < $start) {
+                        $end = $start;
+                    }
+
+                    $getParams['Range'] = 'bytes=' . $start . '-' . $end;
+                    $statusCode = 206;
+                    $contentRange = 'bytes ' . $start . '-' . $end . '/' . $fileSize;
+                    $contentLength = $end - $start + 1;
+                }
+            }
+
+            $result = $this->client->getObject($getParams);
+
+            $safeName = str_replace([' ', '/', '\\'], '_', (string)$displayName) . '.pdf';
+            $mimeType = (string)($result['ContentType'] ?? 'application/pdf');
+            $finalLength = $contentLength ?? (int)($result['ContentLength'] ?? 0);
+
+            http_response_code($statusCode);
+            header('Content-Type: ' . $mimeType);
+            header('Content-Disposition: inline; filename="' . $safeName . '"');
+            header('Accept-Ranges: bytes');
+            header('Cache-Control: public, max-age=300');
+
+            if ($contentRange !== null) {
+                header('Content-Range: ' . $contentRange);
+            }
+            if ($finalLength > 0) {
+                header('Content-Length: ' . $finalLength);
+            }
+
+            echo $result['Body'];
+            exit;
+        } catch (\Aws\Exception\AwsException $e) {
+            error_log("R2 Görüntüleme Hatası: " . $e->getMessage());
+            http_response_code(500);
+            echo "Belge şu anda görüntülenemiyor.";
+            exit;
+        }
     }
 
     /**
@@ -170,7 +267,7 @@ class R2Storage {
 
             $result = $this->client->getObject([
                 'Bucket' => $this->bucketName,
-                'Key'    => $objectKey,
+                'Key'    => $this->normalizeObjectKey((string)$objectKey),
             ]);
 
             // Dosya adını temizleyelim ve .pdf uzantısını ekleyelim

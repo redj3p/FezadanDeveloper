@@ -113,8 +113,7 @@ class NotlarController extends Controller {
             }
 
             require_once ROOT . '/app/Core/R2Storage.php';
-            $r2 = \App\Core\R2Storage::instance();
-            $pdfUrl = $r2->getFileUrl($note['r2_path']);
+            $pdfUrl = '/not/view/' . rawurlencode($slug);
 
             $this->view('front/read-note', [
                 'note' => $note,
@@ -125,6 +124,32 @@ class NotlarController extends Controller {
 
         } catch (\PDOException $e) {
             throw new \Exception("Veritabanı Hatası: " . $e->getMessage());
+        }
+    }
+
+    public function viewPdf($slug = '') {
+        if (empty($slug)) {
+            header('Location: /');
+            exit;
+        }
+
+        try {
+            $pdo = $this->getPDO();
+            $stmt = $pdo->prepare("SELECT title, r2_path FROM notes WHERE slug = ?");
+            $stmt->execute([$slug]);
+            $note = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$note || empty($note['r2_path'])) {
+                http_response_code(404);
+                echo 'Belge bulunamadı.';
+                exit;
+            }
+
+            require_once ROOT . '/app/Core/R2Storage.php';
+            $r2 = \App\Core\R2Storage::instance();
+            $r2->streamView($note['r2_path'], $note['title'] ?? 'belge');
+        } catch (\PDOException $e) {
+            throw new \Exception("Belge Görüntüleme Hatası: " . $e->getMessage());
         }
     }
 

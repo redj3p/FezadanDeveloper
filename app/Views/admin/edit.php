@@ -272,6 +272,10 @@
         function uploadImage(file) {
             let data=new FormData(); data.append("file",file);
             data.append("_csrf", "<?= Csrf::token() ?>");
+            const titleInput = document.querySelector('input[name="title"]');
+            if (titleInput && titleInput.value.trim() !== '') {
+                data.append("slug", titleInput.value.trim());
+            }
             $.ajax({data,type:"POST",url:"/admin/upload-content-image",cache:false,contentType:false,processData:false,dataType:"json",
                 success: function(res) {
                     if (!res || !res.success || !res.url) {

@@ -112,7 +112,7 @@ class Upload
     }
 
 
-    public static function saveImageToR2(array $file, string $folder = 'uploads', string $prefix = 'img_', int $maxBytes = 5242880): ?string
+    public static function saveImageToR2(array $file, string $folder = 'uploads', string $prefix = 'img_', int $maxBytes = 5242880, string $slugBase = ''): ?string
     {
         $tmpDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'fezadan_uploads_' . bin2hex(random_bytes(6));
         if (!@mkdir($tmpDir, 0700, true) && !is_dir($tmpDir)) {
@@ -127,39 +127,141 @@ class Upload
 
         $sourcePath = $tmpDir . DIRECTORY_SEPARATOR . $stored;
         $folder = trim($folder, '/');
-        $objectKey = $folder . '/' . $stored;
-        $contentType = self::$allowed[strtolower(pathinfo($stored, PATHINFO_EXTENSION))] ?? 'application/octet-stream';
+
+        $seed = trim($slugBase) !== ''
+            ? $slugBase
+            : (string)pathinfo((string)($file['name'] ?? ''), PATHINFO_FILENAME);
+        $webpName = self::buildWebpName($seed, $prefix);
+        $webpUploadPath = $tmpDir . DIRECTORY_SEPARATOR . $webpName;
+
+        $sourceExt = strtolower((string)pathinfo($sourcePath, PATHINFO_EXTENSION));
+        $derivedWebpPath = preg_replace('/\.[^.]+$/', '.webp', $sourcePath);
+
+        $webpReady = false;
+        if ($sourceExt === 'webp') {
+            $webpReady = @copy($sourcePath, $webpUploadPath);
+        } elseif ($derivedWebpPath !== $sourcePath && is_file($derivedWebpPath)) {
+            $webpReady = @copy($derivedWebpPath, $webpUploadPath);
+        }
+
+        if (!$webpReady) {
+            $webpReady = self::convertToWebp($sourcePath, $webpUploadPath);
+        }
+
+        if (!$webpReady || !is_file($webpUploadPath)) {
+            self::cleanupTempUpload($tmpDir);
+            return null;
+        }
+
+        $objectKey = ($folder !== '' ? $folder . '/' : '') . $webpName;
 
         try {
             require_once ROOT . '/app/Core/R2Storage.php';
             $r2 = \App\Core\R2Storage::instance();
-            $uploaded = $r2->uploadFile($sourcePath, $objectKey, $contentType);
+            $uploaded = $r2->uploadFile($webpUploadPath, $objectKey, 'image/webp');
             if (!$uploaded) {
-                self::cleanupTempUpload($tmpDir, $stored);
+                self::cleanupTempUpload($tmpDir);
                 return null;
             }
 
-            $webpPath = preg_replace('/\.[^.]+$/', '.webp', $sourcePath);
-            if ($webpPath !== $sourcePath && is_file($webpPath)) {
-                $webpKey = preg_replace('/\.[^.]+$/', '.webp', $objectKey);
-                $r2->uploadFile($webpPath, $webpKey, 'image/webp');
-            }
-
-            self::cleanupTempUpload($tmpDir, $stored);
+            self::cleanupTempUpload($tmpDir);
             return '/' . $objectKey;
         } catch (\Throwable $e) {
             error_log('R2 görsel yükleme hatası: ' . $e->getMessage());
-            self::cleanupTempUpload($tmpDir, $stored);
+            self::cleanupTempUpload($tmpDir);
             return null;
         }
     }
 
-    private static function cleanupTempUpload(string $tmpDir, string $stored): void
+    private static function buildWebpName(string $seed, string $fallbackPrefix): string
     {
-        $sourcePath = $tmpDir . DIRECTORY_SEPARATOR . $stored;
-        $webpPath = preg_replace('/\.[^.]+$/', '.webp', $sourcePath);
-        if (is_file($sourcePath)) @unlink($sourcePath);
-        if ($webpPath !== $sourcePath && is_file($webpPath)) @unlink($webpPath);
+        $base = self::slugify($seed);
+        if ($base === '') {
+            $fallback = trim($fallbackPrefix, "_ \t\n\r\0\x0B");
+            $base = self::slugify($fallback);
+        }
+        if ($base === '') {
+            $base = 'image';
+        }
+
+        try {
+            $suffix = substr(bin2hex(random_bytes(4)), 0, 8);
+        } catch (\Throwable $e) {
+            $suffix = substr(sha1(uniqid('', true)), 0, 8);
+        }
+
+        return $base . '-' . $suffix . '.webp';
+    }
+
+    private static function slugify(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $find = ['Ç', 'Ş', 'Ğ', 'Ü', 'İ', 'Ö', 'ç', 'ş', 'ğ', 'ü', 'ö', 'ı'];
+        $replace = ['c', 's', 'g', 'u', 'i', 'o', 'c', 's', 'g', 'u', 'o', 'i'];
+        $value = strtolower(str_replace($find, $replace, $value));
+        $value = preg_replace('/[^a-z0-9]+/', '-', $value);
+        $value = trim((string)$value, '-');
+
+        return $value;
+    }
+
+    private static function convertToWebp(string $sourcePath, string $destPath, int $quality = 82): bool
+    {
+        if (!is_file($sourcePath)) {
+            return false;
+        }
+
+        if (function_exists('imagecreatefromstring') && function_exists('imagewebp')) {
+            $raw = @file_get_contents($sourcePath);
+            if ($raw !== false) {
+                $im = @imagecreatefromstring($raw);
+                if ($im !== false) {
+                    if (function_exists('imagepalettetotruecolor')) {
+                        @imagepalettetotruecolor($im);
+                    }
+                    @imagesavealpha($im, true);
+                    $ok = @imagewebp($im, $destPath, $quality);
+                    @imagedestroy($im);
+                    if ($ok) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (class_exists('Imagick')) {
+            try {
+                $iw = new \Imagick($sourcePath);
+                $iw->setImageFormat('webp');
+                $iw->setImageCompressionQuality($quality);
+                $iw->setOption('webp:method', '6');
+                $iw->stripImage();
+                $ok = $iw->writeImage($destPath);
+                $iw->clear();
+                $iw->destroy();
+                return (bool)$ok;
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static function cleanupTempUpload(string $tmpDir): void
+    {
+        $files = @glob($tmpDir . DIRECTORY_SEPARATOR . '*');
+        if (is_array($files)) {
+            foreach ($files as $filePath) {
+                if (is_file($filePath)) {
+                    @unlink($filePath);
+                }
+            }
+        }
         @rmdir($tmpDir);
     }
 

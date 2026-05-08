@@ -17,6 +17,9 @@ class App {
                 if (isset($url[1]) && $url[1] == 'download') {
                     $this->method = 'download';
                     $this->params = isset($url[2]) ? [$url[2]] : [];
+                } elseif (isset($url[1]) && $url[1] == 'view') {
+                    $this->method = 'viewPdf';
+                    $this->params = isset($url[2]) ? [$url[2]] : [];
                 } else {
                     $this->method = 'read';
                     $this->params = isset($url[1]) ? [$url[1]] : [];

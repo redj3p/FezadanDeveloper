@@ -364,13 +364,6 @@ class AdminController extends Controller
         $image_db_path      = '';
         $status             = ($_POST['status'] ?? 'published') === 'draft' ? 'draft' : 'published';
 
-        if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
-            $storedPath = Upload::saveImageToR2($_FILES['cover_image'], 'uploads', 'cover_');
-            if ($storedPath !== null) {
-                $image_db_path = $storedPath;
-            }
-        }
-
         try {
             $pdo = $this->getPDO();
 
@@ -380,6 +373,13 @@ class AdminController extends Controller
             $selectedCategories = $this->validateCategoryIds($pdo, $selectedCategories);
 
             $slug = $this->uniqueSlug($pdo, 'articles', $this->createSlug($title));
+
+            if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
+                $storedPath = Upload::saveImageToR2($_FILES['cover_image'], 'uploads/covers', 'cover_', 5242880, $slug);
+                if ($storedPath !== null) {
+                    $image_db_path = $storedPath;
+                }
+            }
 
             $pdo->beginTransaction();
 
@@ -503,13 +503,6 @@ class AdminController extends Controller
         }
 
         $newImageStored = null;
-        if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
-            $storedPath = Upload::saveImageToR2($_FILES['cover_image'], 'uploads', 'cover_');
-            if ($storedPath !== null) {
-                $image_db_path  = $storedPath;
-                $newImageStored = $storedPath;
-            }
-        }
 
         try {
             $pdo = $this->getPDO();
@@ -517,6 +510,14 @@ class AdminController extends Controller
             $selectedCategories = $this->validateCategoryIds($pdo, $selectedCategories);
 
             $slug = $this->uniqueSlug($pdo, 'articles', $this->createSlug($title), $id);
+
+            if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
+                $storedPath = Upload::saveImageToR2($_FILES['cover_image'], 'uploads/covers', 'cover_', 5242880, $slug);
+                if ($storedPath !== null) {
+                    $image_db_path  = $storedPath;
+                    $newImageStored = $storedPath;
+                }
+            }
 
             $pdo->beginTransaction();
 
@@ -909,17 +910,18 @@ class AdminController extends Controller
         $featured_str = implode(',', array_map('intval', (array)($_POST['featured'] ?? [])));
 
         $newImageStored = null;
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $storedPath = Upload::saveImageToR2($_FILES['image'], 'uploads/authors', 'author_');
-            if ($storedPath !== null) {
-                $image_path     = $storedPath;
-                $newImageStored = $storedPath;
-            }
-        }
 
         try {
             $pdo  = $this->getPDO();
             $slug = $this->uniqueSlug($pdo, 'authors', $this->createSlug($name), $id ?: null);
+
+            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                $storedPath = Upload::saveImageToR2($_FILES['image'], 'uploads/authors', 'author_', 5242880, $slug);
+                if ($storedPath !== null) {
+                    $image_path     = $storedPath;
+                    $newImageStored = $storedPath;
+                }
+            }
 
             if ($id > 0) {
                 $stmt = $pdo->prepare("UPDATE authors SET name = ?, slug = ?, bio = ?, image_url = ?, twitter = ?, instagram = ?, website = ?, email = ?, featured_articles = ? WHERE id = ?");
@@ -987,7 +989,8 @@ class AdminController extends Controller
             exit;
         }
 
-        $storedPath = Upload::saveImageToR2($_FILES['file'], 'uploads/content', 'content_');
+        $slugSeed = trim((string)($_POST['slug'] ?? ''));
+        $storedPath = Upload::saveImageToR2($_FILES['file'], 'uploads/content', 'content_', 5242880, $slugSeed);
         if ($storedPath === null) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Geçersiz veya çok büyük dosya.']);
