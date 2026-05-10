@@ -35,7 +35,6 @@ lscache/
 mail/
 ssl/
 public_ftp/
-.cpanel.yml
 
 # Shell/account files
 .bash_history
