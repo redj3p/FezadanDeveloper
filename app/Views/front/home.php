@@ -7,7 +7,6 @@ $page_canonical   = $siteBase . '/';
 $og_url           = $page_canonical;
 $og_type          = 'website';
 $og_image         = $siteBase . '/cdn/notlar-social-preview.png';
-// deneme 2
 $extra_jsonld = [
     [
         '@context'  => 'https://schema.org',
@@ -337,12 +336,12 @@ require_once ROOT . '/app/Views/inc/header.php';
     <div class="border-b border-[var(--line-color)] archive-section-border bg-[var(--bg-paper)] hover:bg-[var(--bg-secondary)] transition-colors duration-300 cursor-pointer">
         <a href="/makaleler" class="block py-12 text-center group" aria-label="Tüm arşivi incele">
             <span class="font-syne text-xl md:text-3xl font-bold text-[var(--text-main)] uppercase tracking-widest group-hover:opacity-70 transition-colors">
-                Tüm Arşivi İncele →
+                Tüm Arşivi İncele → 
             </span>
             <p class="text-xs mt-2 uppercase tracking-widest opacity-60 text-[var(--text-main)]">Toplam <?php echo isset($articles) ? count($articles) : 0; ?> Makale</p>
         </a>
     </div>
-
+    <!-- deploy deneme -->
 </main>
 
 <?php 
