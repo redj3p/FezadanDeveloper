@@ -341,7 +341,7 @@ require_once ROOT . '/app/Views/inc/header.php';
             <p class="text-xs mt-2 uppercase tracking-widest opacity-60 text-[var(--text-main)]">Toplam <?php echo isset($articles) ? count($articles) : 0; ?> Makale</p>
         </a>
     </div>
-    <!-- deploy deneme 33 -->
+    <!-- deploy deneme 67 -->
 </main>
 
 <?php 
