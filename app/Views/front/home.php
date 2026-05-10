@@ -7,7 +7,7 @@ $page_canonical   = $siteBase . '/';
 $og_url           = $page_canonical;
 $og_type          = 'website';
 $og_image         = $siteBase . '/cdn/notlar-social-preview.png';
-
+// deneme
 $extra_jsonld = [
     [
         '@context'  => 'https://schema.org',

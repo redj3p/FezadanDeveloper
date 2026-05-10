@@ -1,0 +1,19 @@
+{
+  "name": "html",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <img src=\"public_html/cdn/logo-light.png\" alt=\"Fezadan Logo\" width=\"240\"/> </p>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "npx @tailwindcss/cli -i ./public_html/assets/css/input.css -o ./public_html/assets/css/style.css --watch",
+    "build": "npx @tailwindcss/cli -i ./public_html/assets/css/input.css -o ./public_html/assets/css/style.css --minify"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.0",
+    "tailwindcss": "^4.3.0"
+  }
+}
