@@ -95,6 +95,12 @@ if (is_dir($repo . '/cron')) {
 
 $ok = deploy_run('cp -Rf ' . escapeshellarg($repo . '/public_html/assets') . '/* ' . escapeshellarg($webRoot . '/assets') . '/') && $ok;
 $ok = deploy_run('cp -Rf ' . escapeshellarg($repo . '/public_html/cdn') . '/* ' . escapeshellarg($webRoot . '/cdn') . '/') && $ok;
+if (is_dir($repo . '/public_html/scripts')) {
+    if (!is_dir($webRoot . '/scripts')) {
+        @mkdir($webRoot . '/scripts', 0755, true);
+    }
+    $ok = deploy_run('cp -Rf ' . escapeshellarg($repo . '/public_html/scripts') . '/* ' . escapeshellarg($webRoot . '/scripts') . '/') && $ok;
+}
 if (is_dir($repo . '/public_html/inc')) {
     $ok = deploy_run('cp -Rf ' . escapeshellarg($repo . '/public_html/inc') . '/* ' . escapeshellarg($webRoot . '/inc') . '/') && $ok;
 }
