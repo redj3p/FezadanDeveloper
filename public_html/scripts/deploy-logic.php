@@ -108,7 +108,7 @@ if (is_file($repo . '/composer.json')) {
     if (is_file($repo . '/composer.lock')) {
         @copy($repo . '/composer.lock', $home . '/composer.lock');
     }
-    $ok = deploy_run('cd ' . escapeshellarg($home) . ' && composer dump-autoload --optimize --classmap-authoritative --no-dev') && $ok;
+    $ok = deploy_run('cd ' . escapeshellarg($home) . ' && /opt/cpanel/composer/bin/composer dump-autoload --optimize --classmap-authoritative --no-dev') && $ok;
 }
 
 if (!$ok) {
