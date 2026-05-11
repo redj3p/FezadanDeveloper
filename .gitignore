@@ -50,6 +50,7 @@ public_ftp/
 
 # IDE / local settings
 .vscode/
+AGENTS.md
 
 # Backup/sync copies
 backups/
@@ -63,8 +64,6 @@ Fezadan-Previous/
 public_html/error_log
 public_html/uploads/
 public_html/assets/uploads/
-
-# Sunucu tani scripti - commit edilmemeli, kullandiktan sonra elle sil
 public_html/debug_server.php
 
 # Local test/snapshot folders

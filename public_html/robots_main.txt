@@ -7,6 +7,7 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /app/
+Disallow: /makale/qr/
 
 # --- AI scraper / LLM eğitim botları engelli ---
 User-agent: GPTBot

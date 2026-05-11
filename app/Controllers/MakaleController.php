@@ -95,6 +95,31 @@ class MakaleController extends Controller {
         }
     }
 
+    // QR kod sayfası
+    public function qr($slug = null) {
+        if (!$slug) { header('Location: /'); exit; }
+
+        try {
+            $pdo  = $this->getPDO();
+            $stmt = $pdo->prepare(
+                "SELECT title, slug FROM articles WHERE slug = :slug AND status = 'published'"
+            );
+            $stmt->execute([':slug' => $slug]);
+            $article = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$article) {
+                http_response_code(404);
+                $this->view('errors/404_article');
+                exit;
+            }
+
+            $this->view('front/qr', ['article' => $article]);
+
+        } catch (\PDOException $e) {
+            throw new \Exception("Sistem Hatası: " . $e->getMessage());
+        }
+    }
+
     // Makale okunma sayısı
     public function count() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
