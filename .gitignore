@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+app/Config/.security_salt
 
 # Dependencies / build
 vendor/
@@ -82,3 +83,6 @@ docker-php-config.php
 migration_galeri.php
 test_apis.php
 test_deepl.php
+
+# Database dumps
+fezadano5_site.sql

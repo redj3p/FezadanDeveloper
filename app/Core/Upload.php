@@ -628,4 +628,111 @@ class Upload
 
         return null;
     }
+
+    public static function saveOriginalImageToR2(array $file, string $folder = 'portfolio', string $prefix = 'port_', int $maxBytes = 20971520, string $slugBase = ''): ?string
+    {
+        $totalStarted = microtime(true);
+        self::setLastError('');
+        self::$lastMeta = [
+            'original_name' => $file['name'] ?? '',
+            'original_size' => (int)($file['size'] ?? 0),
+            'max_bytes' => $maxBytes,
+            'folder' => trim($folder, '/'),
+            'prefix' => $prefix,
+            'timings_ms' => [],
+        ];
+
+        $error = self::imageUploadError($file, $maxBytes);
+        if ($error !== null) {
+            self::setLastError($error);
+            return null;
+        }
+
+        $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        $info = @getimagesize($file['tmp_name']);
+        if (!$info || !isset($info['mime'])) {
+            self::setLastError('Görsel okunamadı.');
+            return null;
+        }
+
+        $tmpCandidates = [
+            ini_get('upload_tmp_dir') ?: '',
+            ini_get('sys_temp_dir') ?: '',
+            rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR),
+        ];
+        $baseTmp = '';
+        foreach ($tmpCandidates as $candidate) {
+            $candidate = trim($candidate);
+            if ($candidate !== '' && (is_dir($candidate) || @mkdir($candidate, 0755, true)) && is_writable($candidate)) {
+                $baseTmp = $candidate;
+                break;
+            }
+        }
+        if ($baseTmp === '') {
+            self::setLastError('Yazılabilir geçici dizin bulunamadı.');
+            return null;
+        }
+
+        $tmpDir = $baseTmp . DIRECTORY_SEPARATOR . 'fezadan_portfolio_' . bin2hex(random_bytes(6));
+        if (!@mkdir($tmpDir, 0700, true) && !is_dir($tmpDir)) {
+            self::setLastError('Geçici klasör oluşturulamadı.');
+            return null;
+        }
+
+        $seed = trim($slugBase) !== ''
+            ? $slugBase
+            : (string)pathinfo((string)($file['name'] ?? ''), PATHINFO_FILENAME);
+        
+        $baseName = self::slugify($seed);
+        if ($baseName === '') {
+            $baseName = 'portfolio';
+        }
+        $suffix = substr(bin2hex(random_bytes(4)), 0, 8);
+        $newName = $baseName . '-' . $suffix . '.' . $ext;
+        $destPath = $tmpDir . DIRECTORY_SEPARATOR . $newName;
+
+        $saved = self::reencodeWithImagick($file['tmp_name'], $destPath, $ext);
+        if (!$saved) {
+            $saved = self::reencodeWithGd($file['tmp_name'], $destPath, $ext);
+        }
+        if (!$saved && !move_uploaded_file($file['tmp_name'], $destPath)) {
+            self::setLastError('Dosya işlenemedi.');
+            self::cleanupTempUpload($tmpDir);
+            return null;
+        }
+
+        $folder = trim($folder, '/');
+        $objectKey = ($folder !== '' ? $folder . '/' : '') . $newName;
+        self::$lastMeta['object_key'] = $objectKey;
+
+        $mimeMap = [
+            'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',  'gif'  => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+        $uploadMime = $mimeMap[$ext] ?? $info['mime'];
+
+        try {
+            require_once ROOT . '/app/Core/R2Storage.php';
+            $r2 = \App\Core\R2Storage::instance();
+            $r2Started = microtime(true);
+            $uploaded = $r2->uploadFile($destPath, $objectKey, $uploadMime);
+            self::$lastMeta['timings_ms']['r2_upload'] = self::elapsedMs($r2Started);
+            if (!$uploaded) {
+                self::setLastError('R2 yüklemesi başarısız oldu.');
+                self::cleanupTempUpload($tmpDir);
+                return null;
+            }
+
+            self::cleanupTempUpload($tmpDir);
+            self::$lastMeta['stage'] = 'done';
+            self::$lastMeta['stored_path'] = '/' . $objectKey;
+            self::$lastMeta['total_ms'] = self::elapsedMs($totalStarted);
+            return '/' . $objectKey;
+        } catch (\Throwable $e) {
+            self::setLastError('R2 yükleme hatası: ' . $e->getMessage());
+            self::cleanupTempUpload($tmpDir);
+            return null;
+        }
+    }
 }

@@ -30,7 +30,7 @@
         [data-theme="dark"] {
             --bg-paper: #120A0A;
             --bg-secondary: #1F1212;
-            --text-main: #E5D0AC;
+            --text-main: #E1C89E;
             --text-accent: #FF5C5C;
             --line-color: #3D1F1F;
         }

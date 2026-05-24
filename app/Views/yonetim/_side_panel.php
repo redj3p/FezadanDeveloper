@@ -30,10 +30,6 @@ if (strpos($current_uri, '/yonetim/create-patch') !== false) {
     $page_title = "PDF NOT YÖNETİMİ";
     $system_status = "R2 DEPOLAMA BAĞLANTISI AKTİF";
     $status_color = "bg-[var(--text-accent)]";
-} elseif (strpos($current_uri, '/yonetim/galeri') !== false) {
-    $page_title = "GALERİ YÖNETİMİ";
-    $system_status = "GÜNLÜK ESER AKTİF";
-    $status_color = "bg-[var(--text-accent)]";
 } elseif (strpos($current_uri, '/yonetim/logs') !== false) {
     $page_title = "HATA KAYITLARI";
     $system_status = "LOG IZLEME AKTIF";
@@ -41,6 +37,10 @@ if (strpos($current_uri, '/yonetim/create-patch') !== false) {
 } elseif (strpos($current_uri, '/yonetim/profile') !== false) {
     $page_title = "PROFİL GÜVENLİĞİ";
     $system_status = "GÜVENLİK PROTOKOLLERİ AKTİF";
+    $status_color = "bg-[var(--text-accent)]";
+} elseif (strpos($current_uri, '/furkan/yonetim') !== false) {
+    $page_title = "PORTFOLYO YÖNETİMİ";
+    $system_status = "MEDYA SUNUCUSU STABİL";
     $status_color = "bg-[var(--text-accent)]";
 } elseif (strpos($current_uri, '/yonetim/edit') !== false) {
     $page_title = "MAKALE DÜZENLEME";
@@ -66,9 +66,9 @@ if (strpos($current_uri, '/yonetim/create-patch') !== false) {
     [data-theme="dark"] {
         --bg-paper: #120A0A;
         --bg-secondary: #1F1212;
-        --text-main: #E5D0AC;
+        --text-main: #E1C89E;
         --text-accent: #FF5C5C;
-        --line-color: #E5D0AC;
+        --line-color: #E1C89E;
     }
 
     /* Tema Değiştirme Butonu Tasarımı */
@@ -150,8 +150,8 @@ if (strpos($current_uri, '/yonetim/create-patch') !== false) {
         <a href="/yonetim/add-note" class="nav-item <?php echo (stripos($_SERVER['REQUEST_URI'], 'add-note') !== false || stripos($_SERVER['REQUEST_URI'], 'edit-note') !== false) ? 'active' : ''; ?> py-4 px-8 font-bold uppercase tracking-widest text-sm flex items-center gap-3">
             <span class="text-lg">🗄</span> <span class="hidden md:inline">Notlar</span>
         </a>
-        <a href="/yonetim/galeri" class="nav-item <?php echo strpos($current_uri, '/yonetim/galeri') !== false ? 'active' : ''; ?> py-4 px-8 font-bold uppercase tracking-widest text-sm flex items-center gap-3">
-            <span class="text-lg">🖼</span> <span class="hidden md:inline">Galeri</span>
+        <a href="/tr/furkan/yonetim" class="nav-item <?php echo strpos($current_uri, '/furkan/yonetim') !== false ? 'active' : ''; ?> py-4 px-8 font-bold uppercase tracking-widest text-sm flex items-center gap-3">
+            <span class="text-lg">📷</span> <span class="hidden md:inline">Portfolyo</span>
         </a>
         <a href="/yonetim/logs" class="nav-item <?php echo strpos($current_uri, '/yonetim/logs') !== false ? 'active' : ''; ?> py-4 px-8 font-bold uppercase tracking-widest text-sm flex items-center gap-3">
             <span class="text-lg">!</span> <span class="hidden md:inline">Hata Kayıtları</span>

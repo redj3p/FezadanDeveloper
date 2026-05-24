@@ -26,6 +26,18 @@
         color: #1a1a1a;
     }
 
+    /* Drop Cap (Makale baş harfi büyütme) */
+    #previewPanel #prev-content > p:first-of-type::first-letter {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 4.5rem;
+        font-weight: 700;
+        float: left;
+        line-height: 0.85;
+        margin-right: 0.6rem;
+        margin-top: 0.15rem;
+        color: var(--text-accent);
+    }
+
     [data-theme="dark"] #previewPanel .journal-text {
         color: var(--text-main);
     }

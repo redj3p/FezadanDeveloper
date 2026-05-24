@@ -9,10 +9,17 @@
     <link rel="apple-touch-icon" href="/cdn/dark-apple-touch-icon.png">
     <link rel="stylesheet" href="/assets/css/yonetim.css">
     <link rel="stylesheet" href="/assets/css/fonts.css">
-    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet"
+          integrity="sha256-oA6D/yIi0I8ZwAwp6HmdjN7OoIOJ/6k+1SISncrEBQA=" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"
+            integrity="sha256-5N4FHlS7bWyb2LyIzO+TQ3eHNvb/vfEEjcdADdIvVTY="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"
+            integrity="sha256-rBmFmSd9mrrXOLZil3/TB0CNi8lHjeCLJvfYr6kmpAw="
+            crossorigin="anonymous"></script>
     <script src="/assets/js/yonetim-editor.js?v=<?php echo filemtime(ROOT . '/public_html/assets/js/yonetim-editor.js'); ?>"></script>
 
     <script>
@@ -39,9 +46,9 @@
         [data-theme="dark"] {
             --bg-paper: #120A0A;
             --bg-secondary: #1F1212;
-            --text-main: #E5D0AC;
+            --text-main: #E1C89E;
             --text-accent: #FF5C5C;
-            --line-color: #E5D0AC;
+            --line-color: #E1C89E;
         }
 
         body {
@@ -250,8 +257,48 @@
             </div>
 
             <div>
-                <label class="font-mono text-xs uppercase font-bold mb-2 block">KISA ÖZET</label>
+                <label class="font-mono text-xs uppercase font-bold mb-2 block">DİL SEÇİMİ</label>
+                <select name="lang" id="langSelect" required class="p-3">
+                    <option value="TR" selected>TR (Türkçe)</option>
+                    <option value="EN">EN (English)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="font-mono text-xs uppercase font-bold mb-2 block">ÇEVİRİ İLİŞKİSİ</label>
+                <select name="translation_of" id="translationOfSelect" class="p-3">
+                    <option value="">-- Çeviri İlişkisi Yok --</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="font-mono text-xs uppercase font-bold mb-2 block">KISA ÖZET (SPOT)</label>
                 <textarea name="desc" rows="5" placeholder="Listeleme açıklaması..." class="text-sm p-3"></textarea>
+            </div>
+
+            <div class="border-t-2 border-[var(--text-main)] pt-4 mt-4">
+                <h3 class="font-syne font-bold uppercase text-xs mb-3">// SEO METADATA</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="font-mono text-xs uppercase font-bold mb-1 block">SEO BAŞLIĞI (SEO TITLE)</label>
+                        <input type="text" name="seo_title" id="seoTitle" placeholder="SEO başlığı..." class="text-sm p-3">
+                    </div>
+                    
+                    <div>
+                        <label class="font-mono text-xs uppercase font-bold mb-1 block">SEO AÇIKLAMASI (SEO DESC)</label>
+                        <textarea name="seo_description" id="seoDescription" rows="4" placeholder="SEO açıklaması..." class="text-sm p-3"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="font-mono text-xs uppercase font-bold mb-1 block">META ANAHTAR KELİMELER</label>
+                        <textarea name="meta_keywords" id="metaKeywords" rows="3" placeholder="virgül, ile, ayırın..." class="text-sm p-3"></textarea>
+                    </div>
+                    
+                    <button type="button" id="generateSeoBtn" class="w-full py-2 text-xs font-bold uppercase border border-[var(--text-accent)] text-[var(--text-accent)] hover:bg-[var(--text-accent)] hover:text-[var(--bg-paper)] transition-all font-syne tracking-wider">
+                        🤖 GEMINI İLE SEO ÜRET
+                    </button>
+                </div>
             </div>
 
             <button type="button" id="draftBtn"
@@ -491,6 +538,81 @@
         document.getElementById('uploadForm').addEventListener('submit', function() {
             localStorage.removeItem('fezadan_create_draft_title');
             localStorage.removeItem('fezadan_create_draft_content');
+        });
+
+        // ===== TRANSLATION & GEMINI INTEGRATION =====
+        const allArticles = <?php echo json_encode($articlesList ?? []); ?>;
+        function updateTranslationOptions() {
+            const langSelect = document.getElementById('langSelect');
+            const translationSelect = document.getElementById('translationOfSelect');
+            if (!langSelect || !translationSelect) return;
+            const selectedLang = langSelect.value;
+            const targetLang = selectedLang === 'TR' ? 'EN' : 'TR';
+
+            translationSelect.innerHTML = '<option value="">-- Çeviri İlişkisi Yok --</option>';
+
+            allArticles.forEach(art => {
+                if (art.lang.toUpperCase() === targetLang) {
+                    const opt = document.createElement('option');
+                    opt.value = art.id;
+                    opt.textContent = `[${art.lang}] ${art.title}`;
+                    translationSelect.appendChild(opt);
+                }
+            });
+        }
+
+        document.getElementById('langSelect').addEventListener('change', updateTranslationOptions);
+        updateTranslationOptions();
+
+        document.getElementById('generateSeoBtn').addEventListener('click', function() {
+            const content = $('#summernote').summernote('code');
+            const lang = document.getElementById('langSelect').value;
+            const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+            if (!content || content.trim() === '' || content === '<p><br></p>') {
+                alert('Lütfen SEO üretmeden önce içerik alanını doldurun.');
+                return;
+            }
+
+            const btn = document.getElementById('generateSeoBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '🤖 SEO ÜRETİLİYOR...';
+
+            const formData = new FormData();
+            formData.append('content', content);
+            formData.append('lang', lang);
+            formData.append('_csrf', csrfToken);
+
+            fetch('/yonetim/generateSeo', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                if (data.success) {
+                    document.getElementById('seoTitle').value = data.title;
+                    document.getElementById('seoDescription').value = data.description;
+                    document.getElementById('metaKeywords').value = data.keywords;
+                    const descInput = document.querySelector('textarea[name="desc"]');
+                    if (descInput && descInput.value.trim() === '') {
+                        descInput.value = data.description;
+                    }
+                    if (typeof updatePreview === 'function') {
+                        updatePreview();
+                    }
+                } else {
+                    alert(data.error || 'Gemini API ile SEO üretilemedi.');
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                console.error(err);
+                alert('Sistem hatası: SEO üretilemedi.');
+            });
         });
 
         // ===== TEMA SWITCH JS MANTIĞI =====

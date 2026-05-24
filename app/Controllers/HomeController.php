@@ -14,10 +14,12 @@ class HomeController extends Controller {
                     LEFT JOIN authors ON articles.author_id = authors.id
                     LEFT JOIN article_categories ac ON ac.article_id = articles.id
                     LEFT JOIN categories c ON c.id = ac.category_id
-                    WHERE articles.status = 'published'
+                    WHERE articles.status = 'published' AND articles.lang = :lang
                     GROUP BY articles.id
                     ORDER BY articles.created_at DESC";
-            $articles = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':lang' => App::getLang()]);
+            $articles = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
             foreach ($articles as &$article) {
                 $cats = [];

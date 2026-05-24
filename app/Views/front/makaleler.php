@@ -1,6 +1,9 @@
 <?php
 $siteBase = defined('SITE_URL') ? rtrim(SITE_URL, '/') : 'https://fezadan.org';
 
+$lang = App::getLang();
+$isEn = ($lang === 'EN');
+
 // SEO stratejisi:
 //   - Hiç filtre yok           → /makaleler            (index, kanonik kendisi)
 //   - Sadece tek kategori (?cat=X) → /makaleler?cat=X  (index, kanonik kendisi → kategori SEO değeri)
@@ -25,17 +28,23 @@ if ($catOnly) {
 }
 
 if ($catOnly && $activeCategoryName) {
-    $page_title       = htmlspecialchars($activeCategoryName) . ' — Makaleler | FEZADAN';
-    $page_description = htmlspecialchars($activeCategoryName) . ' kategorisindeki FEZADAN makaleleri.';
+    $page_title       = htmlspecialchars($activeCategoryName) . ($isEn ? ' — Articles | FEZADAN' : ' — Makaleler | FEZADAN');
+    $page_description = $isEn 
+        ? 'FEZADAN articles in the category ' . htmlspecialchars($activeCategoryName) . '.'
+        : htmlspecialchars($activeCategoryName) . ' kategorisindeki FEZADAN makaleleri.';
     $page_canonical   = $siteBase . '/makaleler?cat=' . (int)$_GET['cat'];
 } elseif ($hasOtherFilters) {
-    $page_title       = 'Makaleler — Arama & Filtre | FEZADAN';
-    $page_description = 'FEZADAN makale arşivinde arama yapın. Yazara, kategoriye veya anahtar kelimeye göre filtreleyin.';
+    $page_title       = $isEn ? 'Articles — Search & Filters | FEZADAN' : 'Makaleler — Arama & Filtre | FEZADAN';
+    $page_description = $isEn
+        ? 'Search the FEZADAN article archive. Filter by author, category, or keyword.'
+        : 'FEZADAN makale arşivinde arama yapın. Yazara, kategoriye veya anahtar kelimeye göre filtreleyin.';
     $page_canonical   = $siteBase . '/makaleler';
     $page_robots      = 'noindex, follow';
 } else {
-    $page_title       = 'Tüm Makaleler | FEZADAN';
-    $page_description = 'FEZADAN makale arşivi — bilim, estetik ve fikir üzerine bağımsız yayın. Tüm yazılar tek liste.';
+    $page_title       = $isEn ? 'All Articles | FEZADAN' : 'Tüm Makaleler | FEZADAN';
+    $page_description = $isEn
+        ? 'FEZADAN article archive — an independent publication on science, aesthetics, and thought. All writings in one list.'
+        : 'FEZADAN makale arşivi — bilim, estetik ve fikir üzerine bağımsız yayın. Tüm yazılar tek liste.';
     $page_canonical   = $siteBase . '/makaleler';
 }
 $og_url = $page_canonical;
@@ -51,58 +60,97 @@ function build_url($new_params = []) {
 }
 ?>
 <style>
-    .grid-container { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--line-color); }
-    @media (min-width: 768px) { .grid-container { grid-template-columns: repeat(2, 1fr); } }
-    @media (min-width: 1024px) { .grid-container { grid-template-columns: repeat(4, 1fr); } }
+    .grid-container { 
+        display: grid; 
+        grid-template-columns: 1fr; 
+        gap: 2rem; 
+        padding: 2.5rem 1rem;
+        border-top: 1px solid var(--line-color); 
+    }
+    @media (min-width: 768px) { 
+        .grid-container { 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 2.5rem; 
+            padding: 4rem 2rem;
+        } 
+    }
+    @media (min-width: 1024px) { 
+        .grid-container { 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 2.5rem; 
+            padding: 4rem 2rem;
+        } 
+    }
     
     .grid-item {
-        border-bottom: 1px solid var(--line-color);
-        border-right: 1px solid var(--line-color);
-        padding: 2.5rem 2rem;
-        transition: background-color 0.3s ease;
-        display: flex; flex-direction: column; justify-content: space-between;
-        min-height: 320px; position: relative; overflow: hidden;
+        background-color: var(--bg-paper);
+        border: 2px solid var(--line-color);
+        box-shadow: 6px 6px 0px var(--line-color);
+        border-radius: 12px;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
     }
-    @media (max-width: 767px) { .grid-item { border-right: none; } }
-    @media (min-width: 1024px) { .grid-item:nth-child(4n) { border-right: none; } }
-    .grid-item:hover { background-color: var(--bg-secondary); }
-
-    .reveal-img {
-        position: absolute; inset: 0; width: 100%; height: 100%;
-        object-fit: cover; pointer-events: none; z-index: 0;
-        opacity: var(--img-opacity); 
-        filter: grayscale(100%) contrast(110%);
-        mix-blend-mode: var(--img-blend); 
-        transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-        transform: scale(1.01);
+    
+    .grid-item:hover { 
+        transform: translateY(-6px);
+        box-shadow: 10px 10px 0px var(--text-accent);
+        border-color: var(--text-accent);
+        background-color: var(--bg-paper);
     }
 
-    .grid-item::before {
+    .card-image-wrapper {
+        position: relative;
+        overflow: hidden;
+        aspect-ratio: 16/9;
+        width: 100%;
+        border-bottom: 2px solid var(--line-color);
+        transition: border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .grid-item:hover .card-image-wrapper {
+        border-bottom-color: var(--text-accent);
+    }
+
+    .card-image-wrapper::before {
         content: "";
         position: absolute;
         inset: 0;
         z-index: 1;
         background-color: var(--text-main);
-        opacity: 0.5;
+        opacity: 0.4;
         mix-blend-mode: color;
         transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1);
         pointer-events: none;
     }
 
-    [data-theme="dark"] .grid-item::before {
-        opacity: 0.15; 
-        mix-blend-mode: lighten; 
+    [data-theme="dark"] .card-image-wrapper::before {
+        opacity: 0.15;
+        mix-blend-mode: lighten;
+    }
+
+    .grid-item:hover .card-image-wrapper::before {
+        opacity: 0;
+    }
+
+    .reveal-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        filter: grayscale(100%) contrast(110%);
+        opacity: 0.85;
     }
 
     .grid-item:hover .reveal-img {
-        opacity: 0.8; 
-        filter: grayscale(0%) contrast(100%); 
+        filter: grayscale(0%) contrast(100%);
         transform: scale(1.05);
-        mix-blend-mode: normal;
-    }
-    
-    .grid-item:hover::before {
-        opacity: 0;
+        opacity: 1;
     }
     
     .font-bebas { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
@@ -139,8 +187,12 @@ function build_url($new_params = []) {
         border-top-color: var(--text-main) !important; 
     }
     [data-theme="dark"] .grid-item { 
-        border-bottom-color: var(--text-main) !important; 
-        border-right-color: var(--text-main) !important; 
+        box-shadow: 6px 6px 0px var(--text-main);
+        border-color: var(--text-main);
+    }
+    [data-theme="dark"] .grid-item:hover { 
+        box-shadow: 10px 10px 0px var(--text-accent);
+        border-color: var(--text-accent);
     }
     [data-theme="dark"] .dynamic-border-color { 
         border-color: var(--text-main) !important; 
@@ -151,7 +203,7 @@ function build_url($new_params = []) {
 
     .filter-select {
         background: transparent; 
-        font-family: 'JetBrains Mono', monospace; 
+        font-family: 'Space Grotesk', sans-serif; 
         font-size: 0.75rem; 
         color: var(--text-main);
         padding: 5px 20px 5px 0; 
@@ -177,21 +229,21 @@ function build_url($new_params = []) {
 <main id="main-content" class="flex-grow w-full max-w-[1920px] mx-auto">
     
     <header class="px-4 py-12 flex flex-col items-center border-b border-[var(--line-color)] dynamic-border-color bg-[var(--bg-paper)]">
-        <h1 class="text-4xl md:text-6xl font-syne font-bold uppercase text-[var(--text-main)]">Tüm Dosyalar</h1>
+        <h1 class="text-4xl md:text-6xl font-syne font-bold uppercase text-[var(--text-main)]"><?= $isEn ? 'All Articles' : 'Tüm Dosyalar' ?></h1>
         
         <form action="" method="GET" class="mt-8 flex flex-wrap justify-center items-end gap-6 md:gap-8 w-full max-w-5xl">
             
             <div class="flex flex-col w-full md:w-auto flex-grow max-w-xs">
-                <label class="text-[10px] uppercase tracking-widest opacity-60 mb-1 text-[var(--text-main)]">Arama</label>
+                <label class="text-[10px] uppercase tracking-widest opacity-60 mb-1 text-[var(--text-main)]"><?= $isEn ? 'Search' : 'Arama' ?></label>
                 <input type="text" name="q" value="<?php echo htmlspecialchars($filters['q']); ?>" 
-                       placeholder="Başlık veya içerik..." 
+                       placeholder="<?= $isEn ? 'Title or content...' : 'Başlık veya içerik...' ?>" 
                        class="bg-transparent py-1 text-[var(--text-main)] font-mono text-sm outline-none placeholder-[var(--text-main)]/40 filter-accent-border">
             </div>
 
             <div class="flex flex-col">
-                <label class="text-[10px] uppercase tracking-widest opacity-60 mb-1 text-[var(--text-main)]">Kategori</label>
+                <label class="text-[10px] uppercase tracking-widest opacity-60 mb-1 text-[var(--text-main)]"><?= $isEn ? 'Category' : 'Kategori' ?></label>
                 <select name="cat" onchange="this.form.submit()" class="filter-select w-32 md:w-40 filter-accent-border">
-                    <option value="">TÜMÜ</option>
+                    <option value=""><?= $isEn ? 'ALL' : 'TÜMÜ' ?></option>
                     <?php if(!empty($categories)): foreach($categories as $cat): ?>
                         <option value="<?php echo $cat['id']; ?>" <?php echo ($filters['cat'] == $cat['id']) ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($cat['name']); ?>
@@ -201,9 +253,9 @@ function build_url($new_params = []) {
             </div>
 
             <div class="flex flex-col">
-                <label class="text-[10px] uppercase tracking-widest opacity-60 mb-1 text-[var(--text-main)]">Yazar</label>
+                <label class="text-[10px] uppercase tracking-widest opacity-60 mb-1 text-[var(--text-main)]"><?= $isEn ? 'Author' : 'Yazar' ?></label>
                 <select name="author" onchange="this.form.submit()" class="filter-select w-32 md:w-40 filter-accent-border">
-                    <option value="">TÜMÜ</option>
+                    <option value=""><?= $isEn ? 'ALL' : 'TÜMÜ' ?></option>
                     <?php if(!empty($authors)): foreach($authors as $aut): ?>
                         <option value="<?php echo $aut['id']; ?>" <?php echo ($filters['author'] == $aut['id']) ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($aut['name']); ?>
@@ -214,12 +266,12 @@ function build_url($new_params = []) {
 
             <div class="flex items-end gap-2 pb-1">
                 <button type="submit" class="bg-[var(--text-main)] text-[var(--bg-paper)] px-4 py-1 text-xs font-bold uppercase border border-[var(--text-main)] hover:bg-transparent hover:text-[var(--text-main)] transition-colors">
-                    FİLTRELE
+                    <?= $isEn ? 'FILTER' : 'FİLTRELE' ?>
                 </button>
                 
                 <?php if(!empty($filters['cat']) || !empty($filters['author']) || !empty($filters['q'])): ?>
-                <a href="/makaleler" class="bg-transparent text-[var(--text-main)] px-3 py-1 text-xs font-bold uppercase border border-[var(--text-main)] hover:bg-[var(--text-main)] hover:text-[var(--bg-paper)] transition-colors">
-                    TEMİZLE
+                <a href="<?php echo langUrl('/makaleler'); ?>" class="bg-transparent text-[var(--text-main)] px-3 py-1 text-xs font-bold uppercase border border-[var(--text-main)] hover:bg-[var(--text-main)] hover:text-[var(--bg-paper)] transition-colors">
+                    <?= $isEn ? 'CLEAR' : 'TEMİZLE' ?>
                 </a>
                 <?php endif; ?>
             </div>
@@ -227,10 +279,14 @@ function build_url($new_params = []) {
         </form>
 
         <p class="mt-8 text-xs font-mono uppercase tracking-widest opacity-50 text-[var(--text-main)]">
-            Toplam <?php echo $totalArticles; ?> Kayıt Bulundu (Sayfa <?php echo $currentPage; ?> / <?php echo $totalPages; ?>)
+            <?php if ($isEn): ?>
+                Total <?php echo $totalArticles; ?> Records Found (Page <?php echo $currentPage; ?> / <?php echo $totalPages; ?>)
+            <?php else: ?>
+                Toplam <?php echo $totalArticles; ?> Kayıt Bulundu (Sayfa <?php echo $currentPage; ?> / <?php echo $totalPages; ?>)
+            <?php endif; ?>
         </p>
     </header>
-
+ 
     <section class="grid-container">
         <?php 
         if(!empty($articles)):
@@ -238,60 +294,82 @@ function build_url($new_params = []) {
                 $preview_img = !empty($article['image_url']) ? $article['image_url'] : '';
         ?>
         <div class="grid-item group relative">
-            <a href="<?php echo SITE_URL; ?>/makale/<?php echo $article['slug']; ?>" class="absolute inset-0 z-0"></a>
+            
+            <!-- Link to the article (occupies the entire card) -->
+            <a href="<?php echo articleUrl($article['author_slug'] ?? 'yazar', $article['slug']); ?>" class="absolute inset-0 z-10" aria-label="<?php echo htmlspecialchars($article['title']); ?> makalesini oku"></a>
 
-            <?php if($preview_img):
+            <!-- Card Image Header -->
+            <?php if($preview_img): 
                 $preview_webp = Upload::webpUrl($preview_img);
                 $preview_url = Upload::assetUrl($preview_img);
                 $preview_fallback = Upload::assetUrl((string)(parse_url($preview_img, PHP_URL_PATH) ?: $preview_img));
             ?>
-                <picture>
-                    <?php if ($preview_webp): ?>
-                        <source type="image/webp" srcset="<?php echo htmlspecialchars($preview_webp, ENT_QUOTES, 'UTF-8'); ?>">
-                    <?php endif; ?>
-                    <img src="<?php echo htmlspecialchars($preview_url, ENT_QUOTES, 'UTF-8'); ?>" width="600" height="400" loading="lazy" decoding="async" onerror="if(this.dataset.fallback){this.onerror=null;this.src=this.dataset.fallback;}" data-fallback="<?php echo htmlspecialchars($preview_fallback, ENT_QUOTES, 'UTF-8'); ?>" class="reveal-img pointer-events-none" alt="<?php echo htmlspecialchars($article['title'] ?? ''); ?>">
-                </picture>
+                <div class="card-image-wrapper">
+                    <picture>
+                        <?php if ($preview_webp): ?>
+                            <source type="image/webp" srcset="<?php echo htmlspecialchars($preview_webp, ENT_QUOTES, 'UTF-8'); ?>">
+                        <?php endif; ?>
+                        <img src="<?php echo htmlspecialchars($preview_url, ENT_QUOTES, 'UTF-8'); ?>" 
+                             width="600" height="400" 
+                             loading="lazy" decoding="async"
+                             onerror="if(this.dataset.fallback){this.onerror=null;this.src=this.dataset.fallback;}"
+                             data-fallback="<?php echo htmlspecialchars($preview_fallback, ENT_QUOTES, 'UTF-8'); ?>"
+                             class="reveal-img pointer-events-none" 
+                             alt="<?php echo htmlspecialchars($article['title']); ?>">
+                    </picture>
+                </div>
+            <?php else: ?>
+                <div class="card-image-wrapper bg-[var(--bg-secondary)]/20 flex items-center justify-center">
+                    <span class="text-xl font-syne font-bold opacity-30 select-none tracking-widest text-[var(--text-main)]">FEZADAN</span>
+                </div>
             <?php endif; ?>
+            
+            <!-- Card Body -->
+            <div class="flex-grow p-6 flex flex-col justify-between">
+                <div>
+                    <!-- Categories -->
+                    <div class="flex flex-wrap gap-1.5 mb-4 relative z-20 pointer-events-auto">
+                        <?php if (!empty($article['categories'])): ?>
+                            <?php foreach($article['categories'] as $cat): ?>
+                                <a href="<?php echo langUrl('/makaleler') . '?cat=' . (int)$cat['id']; ?>" aria-label="<?php echo htmlspecialchars($cat['name']); ?> kategorisindeki makalelere git"
+                                class="flex items-center justify-center leading-none h-6 uppercase text-[var(--text-main)] font-bold border border-[var(--text-main)] px-2 bg-[var(--bg-paper)] hover:bg-[var(--text-main)] hover:text-[var(--bg-paper)] transition-colors text-[10px] shadow-sm rounded-sm">
+                                    <span class="mt-[2px]"><?php echo htmlspecialchars($cat['name']); ?></span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php elseif (!empty($article['category'])): ?>
+                            <span class="flex items-center justify-center leading-none h-6 uppercase text-[var(--text-main)]/70 font-bold border border-[var(--text-main)]/50 px-2 bg-[var(--bg-paper)] text-[10px] rounded-sm select-none">
+                                <span class="mt-[2px]"><?php echo htmlspecialchars($article['category']); ?></span>
+                            </span>
+                        <?php else: ?>
+                            <span class="flex items-center justify-center leading-none h-6 uppercase text-[var(--text-main)]/70 font-bold border border-[var(--text-main)]/50 px-2 bg-[var(--bg-paper)] text-[10px] rounded-sm select-none">
+                                <span class="mt-[2px]"><?= $isEn ? 'GENERAL' : 'GENEL' ?></span>
+                            </span>
+                        <?php endif; ?>
+                    </div>
 
-            <div class="relative z-10 flex justify-end items-start pointer-events-none">
-                
-                <div class="flex flex-wrap justify-end gap-1 max-w-[100%] pointer-events-auto mt-1">
-                    <?php if (!empty($article['categories'])):
-                        foreach($article['categories'] as $cat):
-                    ?>
-                        <a href="/makaleler?cat=<?php echo (int)$cat['id']; ?>"
-                        class="flex items-center justify-center leading-none h-6 uppercase text-[var(--text-main)] font-bold border border-[var(--text-main)] px-2 bg-[var(--bg-paper)] hover:bg-[var(--text-main)] hover:text-[var(--bg-paper)] transition-colors text-[10px] relative z-20 shadow-sm">
-                            <span class="mt-[2px]"><?php echo htmlspecialchars($cat['name']); ?></span>
-                        </a>
-                    <?php endforeach; elseif (!empty($article['category'])): ?>
-                        <span class="flex items-center justify-center leading-none h-6 uppercase text-[var(--text-main)]/70 font-bold border border-[var(--text-main)]/50 px-2 bg-[var(--bg-paper)] text-[10px] rounded-sm">
-                            <span class="mt-[2px]"><?php echo htmlspecialchars($article['category']); ?></span>
+                    <!-- Title & Short Description -->
+                    <h2 class="text-xl font-bold leading-[1.4] mb-4 text-[var(--text-main)] group-hover:text-[var(--text-accent)] transition-colors line-clamp-2">
+                        <?php echo htmlspecialchars($article['title']); ?>
+                    </h2>
+                    <p class="text-sm opacity-85 leading-[1.6] text-[var(--text-main)] line-clamp-3">
+                        <?php echo htmlspecialchars($article['short_desc']); ?>
+                    </p>
+                </div>
+
+                <!-- Card Footer -->
+                <div class="mt-8 pt-4 border-t border-[var(--line-color)] flex justify-between items-center text-[10px] font-mono uppercase opacity-70 text-[var(--text-main)]">
+                    <?php if(!empty($article['author_name'])): ?>
+                        <span><?= $isEn ? 'Author: ' : 'Yazar: ' ?><?php echo htmlspecialchars($article['author_name']); ?></span>
+                    <?php else: ?>
+                        <span></span>
+                    <?php endif; ?>
+
+                    <?php if(!empty($article['created_at'])): ?>
+                        <span>
+                            <?php echo date('d.m.Y', strtotime($article['created_at'])); ?>
                         </span>
                     <?php endif; ?>
                 </div>
-            </div>
-
-            <div class="relative z-10 mt-8 pointer-events-none">
-                <h2 class="text-2xl font-bold leading-none mb-3 text-[var(--text-main)] group-hover:underline decoration-[var(--text-main)] decoration-2 underline-offset-4">
-                    <?php echo htmlspecialchars($article['title']); ?>
-                </h2>
-                <p class="text-sm opacity-80 leading-relaxed text-[var(--text-main)]">
-                    <?php echo htmlspecialchars($article['short_desc']); ?>
-                </p>
-            </div>
-            
-            <div class="relative z-10 mt-4 pt-4 border-t border-[var(--text-main)]/10 pointer-events-none flex justify-between items-center">
-                <?php if(!empty($article['author_name'])): ?>
-                    <p class="text-[10px] font-mono uppercase opacity-60 text-[var(--text-main)]">Yazar: <?php echo htmlspecialchars($article['author_name']); ?></p>
-                <?php else: ?>
-                    <span></span>
-                <?php endif; ?>
-
-                <?php if(!empty($article['created_at'])): ?>
-                    <p class="text-[10px] font-mono uppercase opacity-60 text-[var(--text-main)]">
-                        <?php echo date('d.m.Y', strtotime($article['created_at'])); ?>
-                    </p>
-                <?php endif; ?>
             </div>
         </div>
         <?php endforeach; endif; ?>

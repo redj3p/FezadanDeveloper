@@ -18,22 +18,28 @@ class MakalelerController extends Controller {
             $sortOrder = isset($_GET['sort']) && in_array($_GET['sort'], $allowedSorts, true)
                 ? $_GET['sort']
                 : 'newest';
-            $allCategories = $pdo->query("
+            $catStmt = $pdo->prepare("
                 SELECT DISTINCT c.* FROM categories c 
                 JOIN article_categories ac ON c.id = ac.category_id 
                 JOIN articles a ON ac.article_id = a.id 
-                WHERE a.status = 'published' 
+                WHERE a.status = 'published' AND a.lang = ?
                 ORDER BY c.name ASC
-            ")->fetchAll(\PDO::FETCH_ASSOC);
-            $allAuthors = $pdo->query("
+            ");
+            $catStmt->execute([App::getLang()]);
+            $allCategories = $catStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            $authorStmt = $pdo->prepare("
                 SELECT DISTINCT au.id, au.name 
                 FROM authors au 
                 JOIN articles a ON au.id = a.author_id 
-                WHERE a.status = 'published' 
+                WHERE a.status = 'published' AND a.lang = ?
                 ORDER BY au.name ASC
-            ")->fetchAll(\PDO::FETCH_ASSOC);
-            $whereClauses = ["a.status = 'published'"];
-            $params = [];
+            ");
+            $authorStmt->execute([App::getLang()]);
+            $allAuthors = $authorStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            $whereClauses = ["a.status = 'published'", "a.lang = :lang"];
+            $params = [':lang' => App::getLang()];
 
             if ($catId) {
                 $whereClauses[] = "a.id IN (SELECT article_id FROM article_categories WHERE category_id = :cat)";
@@ -70,7 +76,7 @@ class MakalelerController extends Controller {
             $totalPages = ceil($totalArticles / $limit);
 
             // Tek sorguda kategori bilgisi (N+1 yok)
-            $sql = "SELECT a.*, au.name as author_name,
+            $sql = "SELECT a.*, au.name as author_name, au.slug as author_slug,
                            GROUP_CONCAT(DISTINCT CONCAT_WS('|', c.id, c.name, c.slug) SEPARATOR ';;') AS categories_raw
                     FROM articles a
                     LEFT JOIN authors au ON a.author_id = au.id

@@ -15,7 +15,7 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FEZADAN NOTLAR | <?php echo $page_title ?? 'Akademik Veri Havuzu'; ?></title>
+    <title>FEZADAN NOTLAR | <?php echo htmlspecialchars($page_title ?? 'Akademik Veri Havuzu', ENT_QUOTES, 'UTF-8'); ?></title>
     
     <link rel="icon" type="image/x-icon" href="/cdn/light-favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="/cdn/light-favicon-32x32.png">
@@ -51,8 +51,9 @@
             font-size: 0.85rem; text-decoration: none;
         }
         .skip-to-content:focus { left: 12px; top: 12px; outline: 3px solid #FEF9E1; outline-offset: 2px; }
-        :focus-visible { outline: 2px solid #A31D1D; outline-offset: 2px; }
-        a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
+        :focus-visible { outline: 2px solid var(--text-accent); outline-offset: 2px; }
+        :focus:not(:focus-visible) { outline: none; }
+        html:focus, body:focus, html:focus-visible, body:focus-visible { outline: none !important; }
 
         :root {
             --bg-paper: #FEF9E1; 
@@ -65,7 +66,7 @@
         [data-theme="dark"] {
             --bg-paper: #120A0A;
             --bg-secondary: #1F1212;
-            --text-main: #E5D0AC;
+            --text-main: #E1C89E;
             --text-accent: #FF5C5C;
             --line-color: #3D1F1F;
         }

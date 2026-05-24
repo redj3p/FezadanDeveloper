@@ -14,12 +14,36 @@ class MakaleController extends Controller {
         return hash_hmac('sha256', $articleId . '|' . $date, APP_SALT);
     }
 
-    // slug
-    public function index($slug = null) {
+    // slug and author slug
+    public function index($slug = null, $authorSlug = null) {
         if (!$slug) { header('Location: /'); exit; }
 
         try {
             $pdo = $this->getPDO();
+
+            // Redirect legacy /makale/{slug} URLs to canonical author/article structure
+            if (!$authorSlug) {
+                $stmt = $pdo->prepare("
+                    SELECT a.slug AS article_slug, a.lang, au.slug AS author_slug
+                    FROM articles a
+                    LEFT JOIN authors au ON a.author_id = au.id
+                    WHERE a.slug = ? AND a.status = 'published'
+                ");
+                $stmt->execute([$slug]);
+                $meta = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                if ($meta) {
+                    $prefix = (strtoupper($meta['lang']) === 'EN') ? '/en' : '';
+                    $targetUrl = $prefix . '/' . $meta['author_slug'] . '/' . $meta['article_slug'];
+                    http_response_code(301);
+                    header('Location: ' . $targetUrl);
+                    exit;
+                } else {
+                    http_response_code(404);
+                    $this->view('errors/404_article');
+                    exit;
+                }
+            }
 
             $sql = "SELECT articles.*,
                 authors.name AS author_name,
@@ -28,15 +52,56 @@ class MakaleController extends Controller {
                 authors.slug AS author_slug
             FROM articles
             LEFT JOIN authors ON articles.author_id = authors.id
-            WHERE articles.slug = :slug AND articles.status = 'published'";
+            WHERE articles.slug = :slug 
+              AND authors.slug = :author_slug
+              AND articles.lang = :lang
+              AND articles.status = 'published'";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([':slug' => $slug]);
+            $stmt->execute([
+                ':slug' => $slug, 
+                ':author_slug' => $authorSlug,
+                ':lang' => App::getLang()
+            ]);
             $article = $stmt->fetch(\PDO::FETCH_ASSOC);
 
             if (!$article) {
                 http_response_code(404);
                 $this->view('errors/404_article');
                 exit;
+            }
+
+            // Expose language and alternate translation linking
+            $alternate = null;
+            if (!empty($article['translation_of'])) {
+                $altStmt = $pdo->prepare("
+                    SELECT a.slug AS article_slug, a.lang, au.slug AS author_slug
+                    FROM articles a
+                    LEFT JOIN authors au ON a.author_id = au.id
+                    WHERE a.id = ? AND a.status = 'published'
+                ");
+                $altStmt->execute([$article['translation_of']]);
+                $alternate = $altStmt->fetch(\PDO::FETCH_ASSOC);
+            } else {
+                $altStmt = $pdo->prepare("
+                    SELECT a.slug AS article_slug, a.lang, au.slug AS author_slug
+                    FROM articles a
+                    LEFT JOIN authors au ON a.author_id = au.id
+                    WHERE a.translation_of = ? AND a.status = 'published'
+                ");
+                $altStmt->execute([$article['id']]);
+                $alternate = $altStmt->fetch(\PDO::FETCH_ASSOC);
+            }
+
+            $page_alternates = [];
+            $currentPrefix = (App::getLang() === 'EN' ? '/en' : '');
+            $currentUrlPath = $currentPrefix . '/' . $article['author_slug'] . '/' . $article['slug'];
+            $page_canonical = (defined('SITE_URL') ? rtrim(SITE_URL, '/') : 'https://fezadan.org') . $currentUrlPath;
+            $page_alternates[strtolower(App::getLang())] = $page_canonical;
+
+            if ($alternate) {
+                $prefix = (strtoupper($alternate['lang']) === 'EN') ? '/en' : '';
+                $urlPath = $prefix . '/' . $alternate['author_slug'] . '/' . $alternate['article_slug'];
+                $page_alternates[strtolower($alternate['lang'])] = (defined('SITE_URL') ? rtrim(SITE_URL, '/') : 'https://fezadan.org') . $urlPath;
             }
 
             $catStmt = $pdo->prepare("
@@ -48,7 +113,7 @@ class MakaleController extends Controller {
             $catStmt->execute([$article['id']]);
             $categories = $catStmt->fetchAll(\PDO::FETCH_ASSOC);
 
-            // İlgili makaleler — önce aynı kategoriden, yetmezse son yayınlananlardan
+            // İlgili makaleler — önce aynı kategoriden, yetmezse son yayınlananlardan (filtre: lang)
             $catIds = array_column($categories, 'id');
             $related = [];
             if (!empty($catIds)) {
@@ -60,11 +125,12 @@ class MakaleController extends Controller {
                            JOIN article_categories ac ON ac.article_id = a.id
                            WHERE ac.category_id IN ($in)
                              AND a.id <> ?
+                             AND a.lang = ?
                              AND a.status = 'published'
                            ORDER BY a.created_at DESC
                            LIMIT 3";
                 $stmtRel = $pdo->prepare($sqlRel);
-                $params = array_merge($catIds, [(int)$article['id']]);
+                $params = array_merge($catIds, [(int)$article['id'], App::getLang()]);
                 $stmtRel->execute($params);
                 $related = $stmtRel->fetchAll(\PDO::FETCH_ASSOC);
             }
@@ -76,18 +142,24 @@ class MakaleController extends Controller {
                                    au.name AS author_name, au.slug AS author_slug
                             FROM articles a
                             LEFT JOIN authors au ON a.author_id = au.id
-                            WHERE a.status = 'published' AND a.id NOT IN ($in)
+                            WHERE a.status = 'published' 
+                              AND a.lang = ? 
+                              AND a.id NOT IN ($in)
                             ORDER BY a.created_at DESC
                             LIMIT $need";
                 $stmtFill = $pdo->prepare($sqlFill);
-                $stmtFill->execute($exclude);
+                $paramsFill = array_merge([App::getLang()], $exclude);
+                $stmtFill->execute($paramsFill);
                 $related = array_merge($related, $stmtFill->fetchAll(\PDO::FETCH_ASSOC));
             }
 
             $this->view('front/read', [
-                'article'    => $article,
-                'categories' => $categories,
-                'related'    => $related
+                'article'         => $article,
+                'categories'      => $categories,
+                'related'         => $related,
+                'page_canonical'  => $page_canonical,
+                'page_alternates' => $page_alternates,
+                'page_keywords'   => $article['meta_keywords'] ?? ''
             ]);
 
         } catch (\PDOException $e) {

@@ -9,10 +9,17 @@
     <link rel="apple-touch-icon" href="/cdn/dark-apple-touch-icon.png">
     <link rel="stylesheet" href="/assets/css/yonetim.css">
     <link rel="stylesheet" href="/assets/css/fonts.css">
-    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet"
+          integrity="sha256-oA6D/yIi0I8ZwAwp6HmdjN7OoIOJ/6k+1SISncrEBQA=" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"
+            integrity="sha256-5N4FHlS7bWyb2LyIzO+TQ3eHNvb/vfEEjcdADdIvVTY="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"
+            integrity="sha256-rBmFmSd9mrrXOLZil3/TB0CNi8lHjeCLJvfYr6kmpAw="
+            crossorigin="anonymous"></script>
     <script src="/assets/js/yonetim-editor.js?v=<?php echo filemtime(ROOT . '/public_html/assets/js/yonetim-editor.js'); ?>"></script>
 
     <script>
@@ -39,9 +46,9 @@
         [data-theme="dark"] {
             --bg-paper: #120A0A;
             --bg-secondary: #1F1212;
-            --text-main: #E5D0AC;
+            --text-main: #E1C89E;
             --text-accent: #FF5C5C;
-            --line-color: #E5D0AC;
+            --line-color: #E1C89E;
         }
 
         body {
@@ -183,21 +190,66 @@
                     </div>
                 </div>
 
+                <!-- YAYIN AYARLARI GRUBU -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                         <label class="block font-syne font-bold uppercase text-xs mb-2">Kısa Açıklama (Spot)</label>
-                        <textarea name="desc" rows="4" class="brutalist-input border-2 border-b-2" required><?php echo htmlspecialchars($article['short_desc']); ?></textarea>
+                        <textarea name="desc" rows="6" class="brutalist-input border-2 border-b-2" required><?php echo htmlspecialchars($article['short_desc']); ?></textarea>
                     </div>
-                    <div>
-                        <label class="block font-syne font-bold uppercase text-xs mb-2">Yazar Seçimi</label>
-                        <select name="author_id" class="brutalist-input border-2 border-b-2">
-                            <?php foreach ($authors as $author): ?>
-                            <option value="<?php echo $author['id']; ?>" <?php echo ($article['author_id'] == $author['id']) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($author['name']); ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block font-syne font-bold uppercase text-xs mb-2">Yazar Seçimi</label>
+                            <select name="author_id" class="brutalist-input border-2 border-b-2">
+                                <?php foreach ($authors as $author): ?>
+                                <option value="<?php echo $author['id']; ?>" <?php echo ($article['author_id'] == $author['id']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($author['name']); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-syne font-bold uppercase text-xs mb-2">Dil Seçimi</label>
+                            <select name="lang" id="langSelect" class="brutalist-input border-2 border-b-2">
+                                <option value="TR" <?php echo ($article['lang'] === 'TR') ? 'selected' : ''; ?>>TR (Türkçe)</option>
+                                <option value="EN" <?php echo ($article['lang'] === 'EN') ? 'selected' : ''; ?>>EN (English)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-syne font-bold uppercase text-xs mb-2">Çeviri İlişkisi</label>
+                            <select name="translation_of" id="translationOfSelect" class="brutalist-input border-2 border-b-2">
+                                <option value="">-- Çeviri İlişkisi Yok --</option>
+                            </select>
+                        </div>
                     </div>
+                </div>
+
+                <!-- SEO METADATA -->
+                <div class="border-2 border-[var(--text-main)] p-6 bg-[var(--bg-secondary)]/10 space-y-6">
+                    <h3 class="font-syne font-bold uppercase text-sm border-b border-[var(--text-main)] pb-2">// SEO METADATA</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block font-syne font-bold uppercase text-xs mb-2">SEO Başlığı (SEO Title)</label>
+                                <input type="text" name="seo_title" id="seoTitle" class="brutalist-input border-2 border-b-2" value="<?php echo htmlspecialchars($article['seo_title'] ?? ''); ?>" placeholder="Boş bırakılırsa normal başlık kullanılır...">
+                            </div>
+                            <div>
+                                <label class="block font-syne font-bold uppercase text-xs mb-2">Meta Anahtar Kelimeler</label>
+                                <textarea name="meta_keywords" id="metaKeywords" rows="3" class="brutalist-input border-2 border-b-2" placeholder="virgül, ile, ayırın..."><?php echo htmlspecialchars($article['meta_keywords'] ?? ''); ?></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block font-syne font-bold uppercase text-xs mb-2">SEO Açıklaması (SEO Description)</label>
+                                <textarea name="seo_description" id="seoDescription" rows="6" class="brutalist-input border-2 border-b-2" placeholder="Boş bırakılırsa kısa açıklama kullanılır..."><?php echo htmlspecialchars($article['seo_description'] ?? ''); ?></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" id="generateSeoBtn" class="w-full py-3 text-xs font-bold uppercase border border-[var(--text-accent)] text-[var(--text-accent)] hover:bg-[var(--text-accent)] hover:text-[var(--bg-paper)] transition-all font-syne tracking-wider">
+                        🤖 GEMINI İLE SEO METADATALARI ÜRET
+                    </button>
                 </div>
 
                 <div>
@@ -442,6 +494,86 @@
         document.getElementById('editForm').addEventListener('submit', function() {
             localStorage.removeItem('fezadan_edit_draft_title_' + articleId);
             localStorage.removeItem('fezadan_edit_draft_content_' + articleId);
+        });
+
+        // ===== TRANSLATION & GEMINI INTEGRATION =====
+        const allArticles = <?php echo json_encode($articlesList ?? []); ?>;
+        const initialTranslationId = <?php echo json_encode($article['translation_of'] ?? ''); ?>;
+
+        function updateTranslationOptions() {
+            const langSelect = document.getElementById('langSelect');
+            const translationSelect = document.getElementById('translationOfSelect');
+            if (!langSelect || !translationSelect) return;
+            const selectedLang = langSelect.value;
+            const targetLang = selectedLang === 'TR' ? 'EN' : 'TR';
+
+            translationSelect.innerHTML = '<option value="">-- Çeviri İlişkisi Yok --</option>';
+
+            allArticles.forEach(art => {
+                if (art.lang.toUpperCase() === targetLang) {
+                    const opt = document.createElement('option');
+                    opt.value = art.id;
+                    opt.textContent = `[${art.lang}] ${art.title}`;
+                    if (String(art.id) === String(initialTranslationId)) {
+                        opt.selected = true;
+                    }
+                    translationSelect.appendChild(opt);
+                }
+            });
+        }
+
+        document.getElementById('langSelect').addEventListener('change', updateTranslationOptions);
+        updateTranslationOptions();
+
+        document.getElementById('generateSeoBtn').addEventListener('click', function() {
+            const content = $('#summernote').summernote('code');
+            const lang = document.getElementById('langSelect').value;
+            const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+            if (!content || content.trim() === '' || content === '<p><br></p>') {
+                alert('Lütfen SEO üretmeden önce içerik alanını doldurun.');
+                return;
+            }
+
+            const btn = document.getElementById('generateSeoBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '🤖 SEO ÜRETİLİYOR...';
+
+            const formData = new FormData();
+            formData.append('content', content);
+            formData.append('lang', lang);
+            formData.append('_csrf', csrfToken);
+
+            fetch('/yonetim/generateSeo', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                if (data.success) {
+                    document.getElementById('seoTitle').value = data.title;
+                    document.getElementById('seoDescription').value = data.description;
+                    document.getElementById('metaKeywords').value = data.keywords;
+                    const descInput = document.querySelector('#editForm textarea[name="desc"]');
+                    if (descInput && descInput.value.trim() === '') {
+                        descInput.value = data.description;
+                    }
+                    if (typeof updatePreview === 'function') {
+                        updatePreview();
+                    }
+                } else {
+                    alert(data.error || 'Gemini API ile SEO üretilemedi.');
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                console.error(err);
+                alert('Sistem hatası: SEO üretilemedi.');
+            });
         });
 
         // ===== TEMA SWITCH JS MANTIĞI =====

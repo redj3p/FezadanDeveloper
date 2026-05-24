@@ -23,7 +23,7 @@ require_once ROOT . '/app/Core/Csrf.php';
 require_once ROOT . '/app/Core/Flash.php';
 require_once ROOT . '/app/Core/Upload.php';
 require_once ROOT . '/app/Core/Controller.php';
-require_once ROOT . '/app/Controllers/AdminController.php';
+require_once ROOT . '/app/Controllers/YonetimController.php';
 if (file_exists(ROOT . '/vendor/autoload.php')) {
     require_once ROOT . '/vendor/autoload.php';
 }
@@ -37,7 +37,7 @@ if (!$force && !file_exists($flag)) {
 }
 
 try {
-    $admin = new AdminController();
+    $admin = new YonetimController();
     $admin->generateSitemap();
     @unlink($flag);
     echo "[" . date('c') . "] Sitemap üretildi.\n";

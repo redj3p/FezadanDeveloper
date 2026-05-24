@@ -11,7 +11,7 @@
     RewriteCond %{HTTP_HOST} ^notlar\.fezadan\.org$ [NC]
     RewriteRule ^sitemap\.xml$ sitemap_notes.xml [L]
 
-    RewriteCond %{HTTP_HOST} ^fezadan\.org$ [NC]
+    RewriteCond %{HTTP_HOST} ^(www\.)?fezadan\.org$ [NC]
     RewriteRule ^sitemap\.xml$ sitemap_main.xml [L]
 
     # robots.txt: aynı public_html iki host'a hizmet ediyor — host'a göre ayrı dosya
@@ -35,10 +35,6 @@
     RewriteRule ^yazar/([a-zA-Z0-9_-]+)$ index.php?url=yazar/index/$1 [L,QSA]
     RewriteRule ^makale/([a-zA-Z0-9_-]+)$ index.php?url=makale/index/$1 [L,QSA]
     
-    RewriteRule ^galeri$ index.php?url=galeri [L,QSA]
-    RewriteRule ^galeri/arsiv$ index.php?url=galeri/archive [L,QSA]
-    RewriteRule ^galeri/([a-zA-Z0-9_-]+)$ index.php?url=galeri/show/$1 [L,QSA]
-
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php?url=$1 [L,QSA]
@@ -109,18 +105,44 @@
 
 AddType application/javascript .mjs
 
-# PHP Ayarlari — LiteSpeed .user.ini okumaz, buraya yazilmali
-php_value session.save_handler files
-php_value session.save_path "/home/fezadano5/tmp/sessions"
-php_value session.use_strict_mode 1
-php_value session.gc_maxlifetime 1440
+# PHP Ayarlari — Apache mod_php kullanan sunucular icin. 
+# LiteSpeed (LSPHP) ve PHP-FPM sunucular bu blogu es gecer ve dizindeki .user.ini dosyasini okur.
+# Bu sayede LiteSpeed sunucularda 500 Internal Server Error alinmasi engellenir.
+<IfModule mod_php.c>
+    php_value session.save_handler files
+    php_value session.save_path "/home/fezadano5/tmp/sessions"
+    php_value session.use_strict_mode 1
+    php_value session.gc_maxlifetime 1440
+    php_value upload_max_filesize 20M
+    php_value post_max_size 25M
+    php_value memory_limit 256M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value upload_tmp_dir "/home/fezadano5/tmp"
+</IfModule>
 
-# Upload limitleri — post_max_size 8M'di, resim yuklemeleri sessizce basarisiz oluyordu
-php_value upload_max_filesize 20M
-php_value post_max_size 25M
-php_value memory_limit 256M
-php_value max_execution_time 300
-php_value max_input_time 300
+<IfModule mod_php7.c>
+    php_value session.save_handler files
+    php_value session.save_path "/home/fezadano5/tmp/sessions"
+    php_value session.use_strict_mode 1
+    php_value session.gc_maxlifetime 1440
+    php_value upload_max_filesize 20M
+    php_value post_max_size 25M
+    php_value memory_limit 256M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value upload_tmp_dir "/home/fezadano5/tmp"
+</IfModule>
 
-# Gecici dizin — LiteSpeed icin acik belirtelim
-php_value upload_tmp_dir "/home/fezadano5/tmp"
+<IfModule mod_php8.c>
+    php_value session.save_handler files
+    php_value session.save_path "/home/fezadano5/tmp/sessions"
+    php_value session.use_strict_mode 1
+    php_value session.gc_maxlifetime 1440
+    php_value upload_max_filesize 20M
+    php_value post_max_size 25M
+    php_value memory_limit 256M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value upload_tmp_dir "/home/fezadano5/tmp"
+</IfModule>

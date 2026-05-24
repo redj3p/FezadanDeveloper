@@ -156,13 +156,16 @@ class NotlarController extends Controller {
             $userIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $ipHash = hash('sha256', $userIp . $dailySalt);
 
+            $pdo->beginTransaction();
+
             $pdo->exec("DELETE FROM download_rate_limits WHERE download_time < NOW() - INTERVAL 1 MINUTE");
 
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM download_rate_limits WHERE ip_hash = ?");
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM download_rate_limits WHERE ip_hash = ? FOR UPDATE");
             $stmt->execute([$ipHash]);
             $recentDownloads = (int)$stmt->fetchColumn();
 
             if ($recentDownloads >= 3) {
+                $pdo->commit();
                 header('HTTP/1.1 429 Too Many Requests');
                 header('Location: /not/' . rawurlencode($slug) . '?error=rate_limit');
                 exit;
@@ -173,6 +176,7 @@ class NotlarController extends Controller {
             $note = $stmt->fetch(\PDO::FETCH_ASSOC);
 
             if (!$note) {
+                $pdo->commit();
                 header('Location: /?error=not-found');
                 exit;
             }
@@ -181,6 +185,8 @@ class NotlarController extends Controller {
                 ->execute([$ipHash]);
             $pdo->prepare("UPDATE notes SET downloads = downloads + 1 WHERE id = ?")
                 ->execute([$note['id']]);
+
+            $pdo->commit();
 
             require_once ROOT . '/app/Core/R2Storage.php';
             $r2 = \App\Core\R2Storage::instance();

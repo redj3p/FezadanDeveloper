@@ -154,7 +154,7 @@ function sortIndicator($col, $currentSort) {
             </div>
 
             <div class="brutalist-card bg-[#6D2323] text-[#FEF9E1] p-6 relative group border-[var(--text-main)]">
-                <h3 class="font-mono text-xs text-[#E5D0AC] mb-2 uppercase tracking-widest">Sunucu Durumu</h3>
+                <h3 class="font-mono text-xs text-[#E1C89E] mb-2 uppercase tracking-widest">Sunucu Durumu</h3>
                 <div class="font-syne text-4xl font-bold mb-2">STABIL</div>
                 <p class="text-xs opacity-80 font-mono leading-relaxed">CPU: %12 | RAM: 2.4GB | PING: 24ms</p>
                 <div class="absolute bottom-4 right-4 w-3 h-3 bg-[#00ff00] rounded-full blink"></div>

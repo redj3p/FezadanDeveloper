@@ -46,8 +46,8 @@ class RssController extends Controller {
             header('Cache-Control: public, max-age=900');
             header('Last-Modified: ' . $lastModifiedHttp);
 
-            $channelTitle = 'FEZADAN — Özgür Bilgi Platformu';
-            $channelDesc  = 'Veri ve estetik arasındaki sessiz çatışma. FEZADAN — bilim, estetik ve fikir üzerine bağımsız bir yayın.';
+            $channelTitle = 'FEZADAN - Özgür Bilgi Platformu';
+            $channelDesc  = 'Veri ve estetik arasındaki sessiz çatışma. FEZADAN - bilim, estetik ve fikir üzerine bağımsız bir yayın.';
             $feedSelf     = $siteBase . '/rss';
 
             echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";

@@ -3,11 +3,11 @@ $siteBase = defined('SITE_URL') ? rtrim(SITE_URL, '/') : 'https://fezadan.org';
 $slug     = $article['slug'] ?? '';
 
 // --- Meta / OG (header.php'nin standart değişkenleri) ---
-$page_title       = ($article['title'] ?? 'Makale') . ' | FEZADAN';
-$page_description = !empty($article['short_desc'])
-    ? $article['short_desc']
-    : mb_substr(trim(strip_tags($article['content'] ?? '')), 0, 160);
-$page_canonical   = $siteBase . '/makale/' . $slug;
+$page_title       = !empty($article['seo_title']) ? $article['seo_title'] : (($article['title'] ?? 'Makale') . ' | FEZADAN');
+$page_description = !empty($article['seo_description'])
+    ? $article['seo_description']
+    : (!empty($article['short_desc']) ? $article['short_desc'] : mb_substr(trim(strip_tags($article['content'] ?? '')), 0, 160));
+$page_canonical   = $page_canonical ?? articleUrl($article['author_slug'] ?? 'yazar', $slug);
 $og_url           = $page_canonical;
 $og_type          = 'article';
 $og_image         = !empty($article['image_url'])
@@ -51,6 +51,18 @@ if (!function_exists('fezadan_is_own_upload_image')) {
     }
 }
 
+if (!function_exists('fezadan_sanitize_article_html')) {
+    function fezadan_sanitize_article_html(string $html): string
+    {
+        $dangerousTags = '<(script|iframe|object|embed|form|input|select|textarea|button|applet|audio|video|source|track|link|style|meta|base|frame|frameset)\b[^>]*>.*?</\1>|<(script|iframe|object|embed|form|input|select|textarea|button|applet|audio|video|source|track|link|style|meta|base|frame|frameset)\b[^>]*/?\s*>';
+        $html = preg_replace('@' . $dangerousTags . '@is', '', $html);
+        $html = preg_replace('/\s+on\w+\s*=\s*(["\'])(?:(?!\1).)*\1/is', '', $html);
+        $html = preg_replace('/\s+on\w+\s*=\s*[^\s>]+/is', '', $html);
+        $html = preg_replace('/\s+href\s*=\s*(["\'])javascript:/is', ' href=$1#', $html);
+        return $html;
+    }
+}
+
 if (!function_exists('fezadan_normalize_article_images')) {
     function fezadan_normalize_article_images(string $html): string
     {
@@ -88,7 +100,7 @@ $blogPosting = [
     'author' => [
         '@type' => 'Person',
         'name'  => $article['author_name'] ?? 'FEZADAN',
-        'url'   => !empty($article['author_slug']) ? $siteBase . '/yazar/' . $article['author_slug'] : $siteBase,
+        'url'   => !empty($article['author_slug']) ? langUrl('/yazar/' . $article['author_slug']) : langUrl('/'),
     ],
     'publisher' => [
         '@type' => 'Organization',
@@ -109,14 +121,14 @@ if (!empty($article_section))      $blogPosting['articleSection'] = $article_sec
 if (!empty($article_tags))         $blogPosting['keywords']       = implode(', ', $article_tags);
 
 $breadcrumbItems = [
-    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Anasayfa',  'item' => $siteBase . '/'],
-    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Makaleler', 'item' => $siteBase . '/makaleler'],
+    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Anasayfa',  'item' => langUrl('/')],
+    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Makaleler', 'item' => langUrl('/makaleler')],
 ];
 if (!empty($categories[0]['id'])) {
     $breadcrumbItems[] = [
         '@type' => 'ListItem', 'position' => 3,
         'name'  => $categories[0]['name'],
-        'item'  => $siteBase . '/makaleler?cat=' . (int)$categories[0]['id'],
+        'item'  => langUrl('/makaleler') . '?cat=' . (int)$categories[0]['id'],
     ];
     $breadcrumbItems[] = ['@type' => 'ListItem', 'position' => 4, 'name' => $article['title'] ?? '', 'item' => $page_canonical];
 } else {
@@ -170,6 +182,18 @@ require_once ROOT . '/app/Controllers/MakaleController.php';
         font-size: 1.25rem;
         line-height: 1.8;
         color: #1a1a1a;
+    }
+
+    /* Drop Cap (Makale baş harfi büyütme) */
+    .journal-text > p:first-of-type::first-letter {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 4.5rem;
+        font-weight: 700;
+        float: left;
+        line-height: 0.85;
+        margin-right: 0.6rem;
+        margin-top: 0.15rem;
+        color: var(--text-accent);
     }
 
     [data-theme="dark"] .journal-text {
@@ -876,6 +900,7 @@ if (isset($article['content'])) {
     $processedContent = preg_replace('/(<figcaption)\s+contenteditable="true"/', '$1', $processedContent);
     $processedContent = preg_replace('/(<figcaption)\s+data-placeholder="[^"]*"/', '$1', $processedContent);
     $processedContent = fezadan_normalize_article_images($processedContent);
+    $processedContent = fezadan_sanitize_article_html($processedContent);
     echo $processedContent;
 }
 else {
@@ -1002,7 +1027,7 @@ else {
             <div class="mt-12">
                 <div class="flex flex-col md:flex-row items-center md:items-start gap-8 bg-[var(--bg-secondary)]/10 p-8 border border-[var(--line-color)]">
 
-                    <a href="<?php echo SITE_URL; ?>/yazar/<?php echo $article['author_slug'] ?? $article['author_id']; ?>"
+                    <a href="<?php echo langUrl('/yazar/' . ($article['author_slug'] ?? $article['author_id'])); ?>"
                         class="w-24 h-24 flex-shrink-0 border-2 border-[var(--text-accent)] rounded-full overflow-hidden p-1 group cursor-pointer block">
                         <img src="<?php echo !empty($article['author_img']) ? SITE_URL . '/' . ltrim($article['author_img'], '/') : SITE_URL . '/assets/default-avatar.jpg'; ?>"
                             class="w-full h-full object-cover rounded-full grayscale group-hover:grayscale-0 transition-all duration-500"
@@ -1012,7 +1037,7 @@ else {
                     <div class="text-center md:text-left flex-grow">
                         <span class="block font-syne text-xs uppercase tracking-widest text-[var(--text-accent)] mb-2 font-bold">MAKALE YAZARI</span>
 
-                        <a href="<?php echo SITE_URL; ?>/yazar/<?php echo $article['author_slug'] ?? $article['author_id']; ?>"
+                        <a href="<?php echo langUrl('/yazar/' . ($article['author_slug'] ?? $article['author_id'])); ?>"
                             class="font-syne text-2xl font-bold mb-2 text-[var(--text-main)] hover:text-[var(--text-accent)] hover:underline decoration-2 underline-offset-4 transition-colors inline-block">
                             <?php echo htmlspecialchars($article['author_name'] ?: 'Fezadan Editörü'); ?>
                         </a>
@@ -1021,7 +1046,7 @@ else {
                             <?php echo htmlspecialchars($article['author_bio'] ?: 'Veri ve estetik arasındaki sessiz çatışmayı inceleyen bir gözlemci.'); ?>
                         </p>
 
-                        <a href="<?php echo SITE_URL; ?>/yazar/<?php echo $article['author_slug'] ?? $article['author_id']; ?>"
+                        <a href="<?php echo langUrl('/yazar/' . ($article['author_slug'] ?? $article['author_id'])); ?>"
                             class="inline-flex items-center gap-2 mt-4 text-xs font-bold uppercase tracking-widest text-[var(--text-accent)] hover:bg-[var(--text-accent)] hover:text-[#FEF9E1] px-3 py-1 border border-[var(--text-accent)] transition-all">
                             <span>Yazarın Profilini İncele</span>
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1042,7 +1067,7 @@ else {
             <ul class="grid grid-cols-1 md:grid-cols-3 gap-8 list-none p-0">
                 <?php foreach ($related as $rel): ?>
                     <?php
-                        $relUrl   = $siteBase . '/makale/' . $rel['slug'];
+                        $relUrl   = articleUrl($rel['author_slug'] ?? 'yazar', $rel['slug']);
                         $relImg   = !empty($rel['image_url'])
                             ? Upload::assetUrl($rel['image_url'])
                             : $siteBase . '/cdn/notlar-social-preview.png';

@@ -8,8 +8,12 @@ $_isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
     || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
     || (strpos(($_SERVER['HTTP_CF_VISITOR'] ?? ''), '"https"') !== false);
 
-// cookie_secure sadece HTTPS'te aktif — HTTP Docker'da session'i ezmiyordu
-ini_set('session.cookie_secure', $_isHttps ? '1' : '0');
+// cookie_secure: always on for HTTPS, also force on for non-localhost environments
+$_isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    || (strpos(($_SERVER['HTTP_CF_VISITOR'] ?? ''), '"https"') !== false);
+$_isLocal = in_array(($_SERVER['REMOTE_ADDR'] ?? ''), ['127.0.0.1', '::1', 'localhost']);
+ini_set('session.cookie_secure', ($_isHttps || !$_isLocal) ? '1' : '0');
 ini_set('session.cookie_samesite', 'Lax');
 
 // Session kayıt dizini: .user.ini ayarlı yolu veya home tmp kullan
@@ -31,10 +35,11 @@ session_start();
 header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=(), browsing-topics=()');
 if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')) {
     header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
 }
-// // // // header("Content-Security-Policy: frame-ancestors 'self'; upgrade-insecure-requests;");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; media-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;");
 header_remove('X-Powered-By');
 
 // --- 2. Cloudflare IP Doğrulama Fonksiyonu ---
@@ -124,6 +129,7 @@ require_once ROOT . '/app/Core/Db.php';
 require_once ROOT . '/app/Core/Csrf.php';
 require_once ROOT . '/app/Core/Flash.php';
 require_once ROOT . '/app/Core/Upload.php';
+require_once ROOT . '/app/Core/GeminiService.php';
 require_once ROOT . '/app/Core/App.php';
 require_once ROOT . '/app/Core/Controller.php';
 require_once ROOT . '/vendor/autoload.php';

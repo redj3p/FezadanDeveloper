@@ -1,5 +1,4 @@
 <?php
-require_once ROOT . '/app/Core/DailyArtwork.php';
 
 class YonetimController extends Controller
 {
@@ -14,9 +13,8 @@ class YonetimController extends Controller
     /** CSRF verify gerektirmeyen istisnai metodlar (login: session henüz açılmamış olabilir) */
     private static $csrfExempt = ['login'];
 
-    private static $jsonMethods = ['uploadContentImage'];
+    private static $jsonMethods = ['uploadContentImage', 'generateSeo'];
 
-    /** GET ile çağrılması yasaklanan, yalnızca POST kabul edilen yazma uçları */
     private static $writeMethods = [
         'login','logout','store','update','delete','publish',
         'storeCategory','deleteCategory',
@@ -26,6 +24,7 @@ class YonetimController extends Controller
         'updatePassword','uploadContentImage',
         'refreshDailyArt','updateArtDescription',
         'generateSitemap',
+        'generateSeo',
     ];
 
     public function __construct()
@@ -80,6 +79,13 @@ class YonetimController extends Controller
     private function requirePost(): void
     {
         if (PHP_SAPI === 'cli') {
+            $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+            $caller = $trace[1]['function'] ?? '';
+            $cliAllowed = ['generateSitemap', 'generateSitemapInternal'];
+            if (!in_array($caller, $cliAllowed, true)) {
+                fwrite(STDERR, "Error: Method '$caller' not allowed from CLI.\n");
+                exit(1);
+            }
             return;
         }
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -287,6 +293,7 @@ class YonetimController extends Controller
         $userIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
         $dailySalt = date('Y-m-d') . APP_SALT; 
         $ipHash = hash('sha256', $userIp . $dailySalt);
+        $usernameHash = hash('sha256', $username . $dailySalt);
 
         try {
             $pdo = $this->getPDO();
@@ -294,9 +301,9 @@ class YonetimController extends Controller
             // 1. ESKİ KAYITLARI TEMİZLE: 3 saatten eski denemeleri sil
             $pdo->exec("DELETE FROM login_attempts WHERE attempt_time < NOW() - INTERVAL 3 HOUR");
 
-            // 2. KONTROL: Bu hash ile son 3 saatte kaç hatalı giriş yapılmış?
-            $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE ip_hash = ?");
-            $stmtCount->execute([$ipHash]);
+            // 2. KONTROL: Bu IP veya kullanıcı adı ile son 3 saatte kaç hatalı giriş yapılmış?
+            $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE (ip_hash = ? OR (username_hash IS NOT NULL AND username_hash = ?))");
+            $stmtCount->execute([$ipHash, $usernameHash]);
             $attempts = $stmtCount->fetchColumn();
 
             // 3. ENGEL: 3 hata varsa engelle
@@ -312,8 +319,8 @@ class YonetimController extends Controller
 
             if ($user && password_verify($password, $user['password'])) {
                 
-                // Başarılı giriş: Bu hash'e ait hatalı denemeleri temizle
-                $pdo->prepare("DELETE FROM login_attempts WHERE ip_hash = ?")->execute([$ipHash]);
+                // Başarılı giriş: Bu hash'lere ait hatalı denemeleri temizle
+                $pdo->prepare("DELETE FROM login_attempts WHERE ip_hash = ? OR (username_hash IS NOT NULL AND username_hash = ?)")->execute([$ipHash, $usernameHash]);
 
                 // Session fixation koruması: oturum kimliğini yenile, eski içerikleri sıfırla
                 session_regenerate_id(true);
@@ -330,9 +337,9 @@ class YonetimController extends Controller
                 exit;
             }
             else {
-                // Başarısız giriş: Hashlenmiş IP'yi kaydet
-                $stmtFail = $pdo->prepare("INSERT INTO login_attempts (ip_hash) VALUES (?)");
-                $stmtFail->execute([$ipHash]);
+                // Başarısız giriş: Hashlenmiş IP ve kullanıcı adını kaydet
+                $stmtFail = $pdo->prepare("INSERT INTO login_attempts (ip_hash, username_hash) VALUES (?, ?)");
+                $stmtFail->execute([$ipHash, $usernameHash]);
 
                 header('Location: /yonetim?error=1');
                 exit;
@@ -535,10 +542,12 @@ class YonetimController extends Controller
             $pdo = $this->getPDO();
             $categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll(\PDO::FETCH_ASSOC);
             $authors = $pdo->query("SELECT id, name FROM authors ORDER BY name ASC")->fetchAll(\PDO::FETCH_ASSOC);
+            $articlesList = $pdo->query("SELECT id, title, lang FROM articles ORDER BY title ASC")->fetchAll(\PDO::FETCH_ASSOC);
 
             $this->view('yonetim/create', [
                 'authors' => $authors,
-                'categories' => $categories
+                'categories' => $categories,
+                'articlesList' => $articlesList
             ]);
         }
         catch (\PDOException $e) {
@@ -559,6 +568,11 @@ class YonetimController extends Controller
         $selectedCategories = $_POST['categories'] ?? [];
         $image_db_path      = '';
         $status             = ($_POST['status'] ?? 'published') === 'draft' ? 'draft' : 'published';
+        $lang               = $this->normalizeNoteLang($_POST['lang'] ?? 'TR');
+        $meta_keywords      = trim($_POST['meta_keywords'] ?? '');
+        $translation_of     = isset($_POST['translation_of']) && (int)$_POST['translation_of'] > 0 ? (int)$_POST['translation_of'] : null;
+        $seo_title          = trim($_POST['seo_title'] ?? '');
+        $seo_description    = trim($_POST['seo_description'] ?? '');
 
         try {
             $pdo = $this->getPDO();
@@ -579,13 +593,18 @@ class YonetimController extends Controller
 
             $pdo->beginTransaction();
 
-            $stmt = $pdo->prepare("INSERT INTO articles (title, slug, short_desc, content, refs, image_url, author_id, status) VALUES (:title, :slug, :desc, :content, :refs, :img, :author_id, :status)");
+            $stmt = $pdo->prepare("INSERT INTO articles (title, slug, short_desc, content, refs, image_url, author_id, status, lang, meta_keywords, translation_of, seo_title, seo_description) VALUES (:title, :slug, :desc, :content, :refs, :img, :author_id, :status, :lang, :meta_keywords, :translation_of, :seo_title, :seo_description)");
             $stmt->execute([
                 ':title' => $title, ':slug' => $slug, ':desc' => $desc,
                 ':content' => $content,
                 ':refs' => $refs,
                 ':img' => $image_db_path, ':author_id' => $author_id ?: null,
-                ':status' => $status
+                ':status' => $status,
+                ':lang' => $lang,
+                ':meta_keywords' => $meta_keywords ?: null,
+                ':translation_of' => $translation_of,
+                ':seo_title' => $seo_title ?: null,
+                ':seo_description' => $seo_description ?: null
             ]);
             $articleId = $pdo->lastInsertId();
 
@@ -663,12 +682,16 @@ class YonetimController extends Controller
 
             $categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll(\PDO::FETCH_ASSOC);
             $authors    = $pdo->query("SELECT id, name FROM authors ORDER BY name ASC")->fetchAll(\PDO::FETCH_ASSOC);
+            $articlesListStmt = $pdo->prepare("SELECT id, title, lang FROM articles WHERE id != ? ORDER BY title ASC");
+            $articlesListStmt->execute([$id]);
+            $articlesList = $articlesListStmt->fetchAll(\PDO::FETCH_ASSOC);
 
             $this->view('yonetim/edit', [
                 'article'            => $article,
                 'categories'         => $categories,
                 'authors'            => $authors,
-                'selectedCategories' => $selectedCategories
+                'selectedCategories' => $selectedCategories,
+                'articlesList'       => $articlesList
             ]);
         }
         catch (\PDOException $e) {
@@ -692,6 +715,11 @@ class YonetimController extends Controller
         $image_db_path      = $current_image;
         $oldImagePath       = $current_image;
         $status             = ($_POST['status'] ?? 'published') === 'draft' ? 'draft' : 'published';
+        $lang               = $this->normalizeNoteLang($_POST['lang'] ?? 'TR');
+        $meta_keywords      = trim($_POST['meta_keywords'] ?? '');
+        $translation_of     = isset($_POST['translation_of']) && (int)$_POST['translation_of'] > 0 ? (int)$_POST['translation_of'] : null;
+        $seo_title          = trim($_POST['seo_title'] ?? '');
+        $seo_description    = trim($_POST['seo_description'] ?? '');
 
         if ($id <= 0) {
             header('Location: /yonetim/dashboard?status=invalid');
@@ -717,9 +745,9 @@ class YonetimController extends Controller
 
             $pdo->beginTransaction();
 
-            $sql = "UPDATE articles SET title = ?, slug = ?, short_desc = ?, content = ?, refs = ?, author_id = ?, image_url = ?, status = ? WHERE id = ?";
+            $sql = "UPDATE articles SET title = ?, slug = ?, short_desc = ?, content = ?, refs = ?, author_id = ?, image_url = ?, status = ?, lang = ?, meta_keywords = ?, translation_of = ?, seo_title = ?, seo_description = ? WHERE id = ?";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([$title, $slug, $desc, $content, $refs, $author_id ?: null, $image_db_path, $status, $id]);
+            $stmt->execute([$title, $slug, $desc, $content, $refs, $author_id ?: null, $image_db_path, $status, $lang, $meta_keywords ?: null, $translation_of, $seo_title ?: null, $seo_description ?: null, $id]);
 
             $pdo->prepare("DELETE FROM article_categories WHERE article_id = ?")->execute([$id]);
 
@@ -785,14 +813,38 @@ class YonetimController extends Controller
     public function generateSitemap()
     {
         $this->requirePost();
+        $this->generateSitemapInternal();
+    }
 
+    private function generateSitemapInternal()
+    {
         try {
             $pdo = $this->getPDO();
 
-            $articles   = $pdo->query("SELECT slug, created_at, COALESCE(updated_at, created_at) AS lastmod FROM articles WHERE status = 'published' ORDER BY created_at DESC")->fetchAll(\PDO::FETCH_ASSOC);
+            $articles   = $pdo->query("
+                SELECT a.slug, a.lang, a.created_at, COALESCE(a.updated_at, a.created_at) AS lastmod, au.slug AS author_slug
+                FROM articles a
+                LEFT JOIN authors au ON a.author_id = au.id
+                WHERE a.status = 'published'
+                ORDER BY a.created_at DESC
+            ")->fetchAll(\PDO::FETCH_ASSOC);
             $notes      = $pdo->query("SELECT slug, created_at, COALESCE(updated_at, created_at) AS lastmod FROM notes ORDER BY created_at DESC")->fetchAll(\PDO::FETCH_ASSOC);
-            $authors    = $pdo->query("SELECT DISTINCT au.slug FROM authors au JOIN articles a ON a.author_id = au.id WHERE a.status = 'published'")->fetchAll(\PDO::FETCH_ASSOC);
-            $categories = $pdo->query("SELECT DISTINCT c.id FROM categories c JOIN article_categories ac ON ac.category_id = c.id JOIN articles a ON ac.article_id = a.id WHERE a.status = 'published'")->fetchAll(\PDO::FETCH_ASSOC);
+            
+            // Get categories with the language of published articles in them
+            $categories = $pdo->query("
+                SELECT DISTINCT ac.category_id, a.lang
+                FROM article_categories ac
+                JOIN articles a ON ac.article_id = a.id
+                WHERE a.status = 'published'
+            ")->fetchAll(\PDO::FETCH_ASSOC);
+            
+            // Get authors with the language of their published articles
+            $authors = $pdo->query("
+                SELECT DISTINCT au.slug, a.lang
+                FROM authors au
+                JOIN articles a ON a.author_id = au.id
+                WHERE a.status = 'published'
+            ")->fetchAll(\PDO::FETCH_ASSOC);
 
             $base      = defined('SITE_URL')       ? rtrim(SITE_URL, '/')       : 'https://fezadan.org';
             $notesBase = defined('NOTES_SITE_URL') ? rtrim(NOTES_SITE_URL, '/') : 'https://notlar.fezadan.org';
@@ -802,27 +854,32 @@ class YonetimController extends Controller
             $xmlMain  = '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
             $xmlMain .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
 
-            $staticPages = [
-                ['loc' => $base . '/',          'priority' => '1.0', 'changefreq' => 'daily'],
-                ['loc' => $base . '/makaleler', 'priority' => '0.9', 'changefreq' => 'daily'],
-                ['loc' => $base . '/hakkinda',  'priority' => '0.5', 'changefreq' => 'monthly'],
-                ['loc' => $base . '/manifesto', 'priority' => '0.5', 'changefreq' => 'monthly'],
-            ];
-            foreach ($staticPages as $sp) {
-                $xmlMain .= "  <url><loc>{$sp['loc']}</loc><lastmod>{$todayIso}</lastmod><changefreq>{$sp['changefreq']}</changefreq><priority>{$sp['priority']}</priority></url>" . PHP_EOL;
+            // Generate language-prefixed versions of static pages to avoid 301 redirects
+            $langs = ['tr', 'en'];
+            foreach ($langs as $lang) {
+                $xmlMain .= "  <url><loc>{$base}/{$lang}</loc><lastmod>{$todayIso}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>" . PHP_EOL;
+                $xmlMain .= "  <url><loc>{$base}/{$lang}/makaleler</loc><lastmod>{$todayIso}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>" . PHP_EOL;
+                $xmlMain .= "  <url><loc>{$base}/{$lang}/hakkinda</loc><lastmod>{$todayIso}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>" . PHP_EOL;
+                $xmlMain .= "  <url><loc>{$base}/{$lang}/manifesto</loc><lastmod>{$todayIso}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>" . PHP_EOL;
             }
+
             foreach ($articles as $article) {
                 $lastMod = date('Y-m-d', strtotime($article['lastmod'] ?? $article['created_at']));
-                $loc     = htmlspecialchars($base . '/makale/' . $article['slug'], ENT_XML1);
+                $langCode = strtolower($article['lang'] ?? 'tr');
+                $prefix = '/' . $langCode;
+                $authorSlug = $article['author_slug'] ?: 'yazar';
+                $loc     = htmlspecialchars($base . $prefix . '/' . $authorSlug . '/' . $article['slug'], ENT_XML1);
                 $xmlMain .= "  <url><loc>{$loc}</loc><lastmod>{$lastMod}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>" . PHP_EOL;
             }
             foreach ($categories as $cat) {
-                $loc = htmlspecialchars($base . '/makaleler?cat=' . (int)$cat['id'], ENT_XML1);
+                $langCode = strtolower($cat['lang'] ?? 'tr');
+                $loc = htmlspecialchars($base . '/' . $langCode . '/makaleler?cat=' . (int)$cat['category_id'], ENT_XML1);
                 $xmlMain .= "  <url><loc>{$loc}</loc><lastmod>{$todayIso}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>" . PHP_EOL;
             }
             foreach ($authors as $au) {
                 if (empty($au['slug'])) continue;
-                $loc = htmlspecialchars($base . '/yazar/' . $au['slug'], ENT_XML1);
+                $langCode = strtolower($au['lang'] ?? 'tr');
+                $loc = htmlspecialchars($base . '/' . $langCode . '/yazar/' . $au['slug'], ENT_XML1);
                 $xmlMain .= "  <url><loc>{$loc}</loc><lastmod>{$todayIso}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>" . PHP_EOL;
             }
             $xmlMain .= '</urlset>';
@@ -845,6 +902,35 @@ class YonetimController extends Controller
         }
     }
 
+    public function generateSeo()
+    {
+        $this->requirePost();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $content = $_POST['content'] ?? '';
+        $lang = $this->normalizeNoteLang($_POST['lang'] ?? 'TR');
+
+        if (empty($content)) {
+            echo json_encode(['success' => false, 'error' => 'Makale içeriği boş olamaz.']);
+            exit;
+        }
+
+        $seo = GeminiService::generateSeo($content, $lang);
+
+        if ($seo === null) {
+            echo json_encode(['success' => false, 'error' => 'Gemini API ile SEO bilgileri üretilemedi. Lütfen API anahtarını ve bağlantıyı kontrol edin.']);
+            exit;
+        }
+
+        echo json_encode([
+            'success' => true,
+            'title' => $seo['title'],
+            'description' => $seo['description'],
+            'keywords' => $seo['keywords']
+        ]);
+        exit;
+    }
+
     /**
      * Sitemap'in yeniden üretilmesi gerektiğini işaretle.
      * cron/generate-sitemap.php her N dakikada bir bu flag'e bakıp üretimi gerçekleştirir.
@@ -853,6 +939,11 @@ class YonetimController extends Controller
     private function markSitemapDirty(): void
     {
         @touch(sys_get_temp_dir() . '/fezadan-sitemap.dirty');
+        try {
+            $this->generateSitemapInternal();
+        } catch (\Throwable $e) {
+            error_log('Inline sitemap generation failed: ' . $e->getMessage());
+        }
     }
 
     /** Yarım dosya yazımını engellemek için atomik yazım. */
@@ -1488,106 +1579,4 @@ class YonetimController extends Controller
         }
     }
 
-    // --- Galeri ---
-
-    public function galeri()
-    {
-        if (!isset($_SESSION['admin_logged_in'])) { header('Location: /yonetim'); exit; }
-
-        try {
-            $pdo = $this->getPDO();
-            DailyArtwork::ensureSchema($pdo);
-
-            $today = DailyArtwork::today();
-            $todayArt = DailyArtwork::findByDate($pdo, $today);
-            $allArtworks = DailyArtwork::all($pdo, 365);
-
-            $this->view('yonetim/galeri', [
-                'todayArt' => $todayArt,
-                'allArtworks' => $allArtworks,
-                'today' => $today,
-            ]);
-        } catch (\Throwable $e) {
-            AdminLog::write('error', 'Admin galeri sayfasi yuklenemedi.', [
-                'endpoint' => 'galeri',
-                'detail'   => $e->getMessage(),
-            ]);
-            throw new \Exception("Galeri Hatası: " . $e->getMessage());
-        }
-    }
-
-    public function refreshDailyArt()
-    {
-        $this->requirePost();
-        
-        try {
-            $pdo = $this->getPDO();
-            DailyArtwork::ensureSchema($pdo);
-            $today = DailyArtwork::today();
-
-            require_once ROOT . '/app/Core/ArtProvider.php';
-            $artwork = \ArtProvider::getRandomArtwork(true);
-
-            if (!$artwork) {
-                throw new \RuntimeException('Sanat eseri sağlayıcılarından yanıt alınamadı.');
-            }
-
-            DailyArtwork::deleteByDate($pdo, $today);
-            $saved = DailyArtwork::saveForDate($pdo, $artwork, $today);
-            AdminLog::write('info', 'Galeri günün eseri yenilendi.', [
-                'endpoint' => 'refreshDailyArt',
-                'date' => $today,
-                'title' => $saved['title'] ?? ($artwork['title'] ?? ''),
-                'provider' => $saved['provider'] ?? ($artwork['provider'] ?? ''),
-            ]);
-
-            header('Location: /yonetim/galeri?status=refreshed');
-            exit;
-
-        } catch (\Exception $e) {
-            error_log("Galeri Refresh Error: " . $e->getMessage());
-            AdminLog::write('error', 'Galeri günün eseri yenilenemedi.', [
-                'endpoint' => 'refreshDailyArt',
-                'detail' => $e->getMessage(),
-            ]);
-            header('Location: /yonetim/galeri?error=refresh_failed');
-            exit;
-        }
-    }
-
-    public function updateArtDescription()
-    {
-        $this->requirePost();
-        
-        $id = (int)($_POST['id'] ?? 0);
-        $descTr = $_POST['description_tr'] ?? '';
-        
-        if ($id <= 0) {
-            header('Location: /yonetim/galeri?error=invalid_id');
-            exit;
-        }
-        
-        try {
-            $pdo = $this->getPDO();
-            DailyArtwork::ensureSchema($pdo);
-            $stmt = $pdo->prepare("UPDATE daily_artworks SET description_tr = ?, description_source = 'manual' WHERE id = ?");
-            $stmt->execute([$descTr, $id]);
-            AdminLog::write('info', 'Galeri açıklaması güncellendi.', [
-                'endpoint' => 'updateArtDescription',
-                'artwork_id' => $id,
-            ]);
-            
-            header('Location: /yonetim/galeri?status=updated');
-            exit;
-        } catch (\PDOException $e) {
-            error_log("Galeri Update Error: " . $e->getMessage());
-            AdminLog::write('error', 'Galeri açıklaması güncellenemedi.', [
-                'endpoint' => 'updateArtDescription',
-                'artwork_id' => $id,
-                'detail' => $e->getMessage(),
-            ]);
-            header('Location: /yonetim/galeri?error=update_failed');
-            exit;
-        }
-    }
 }

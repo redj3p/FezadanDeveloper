@@ -20,8 +20,8 @@ class YazarController extends Controller {
                 exit;
             }
             
-            $stmtAll = $pdo->prepare("SELECT * FROM articles WHERE author_id = ? AND status = 'published' ORDER BY created_at DESC");
-            $stmtAll->execute([$author['id']]);
+            $stmtAll = $pdo->prepare("SELECT * FROM articles WHERE author_id = ? AND status = 'published' AND lang = ? ORDER BY created_at DESC");
+            $stmtAll->execute([$author['id'], App::getLang()]);
             $all_articles = $stmtAll->fetchAll(\PDO::FETCH_ASSOC);
 
             $featured_articles = [];
@@ -32,8 +32,8 @@ class YazarController extends Controller {
                 )));
                 if (!empty($featuredIds)) {
                     $inQuery = implode(',', array_fill(0, count($featuredIds), '?'));
-                    $stmtFeatured = $pdo->prepare("SELECT * FROM articles WHERE id IN ($inQuery) AND status = 'published'");
-                    $stmtFeatured->execute($featuredIds);
+                    $stmtFeatured = $pdo->prepare("SELECT * FROM articles WHERE id IN ($inQuery) AND status = 'published' AND lang = ?");
+                    $stmtFeatured->execute(array_merge($featuredIds, [App::getLang()]));
                     $featured_articles = $stmtFeatured->fetchAll(\PDO::FETCH_ASSOC);
                 }
             }
