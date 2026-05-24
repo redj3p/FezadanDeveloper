@@ -75,7 +75,7 @@
                 <span class="w-3 h-3 bg-[#6D2323]"></span> Yeni Öge Ekle
             </h3>
             
-            <form action="/tr/furkan/store" method="POST" enctype="multipart/form-data" class="border-2 border-[var(--text-main)] p-6 shadow-[8px_8px_0px_#A31D1D] bg-[var(--bg-paper)] space-y-4 max-h-[calc(100vh-170px)] overflow-y-auto custom-scrollbar">
+            <form action="/store" method="POST" enctype="multipart/form-data" class="border-2 border-[var(--text-main)] p-6 shadow-[8px_8px_0px_#A31D1D] bg-[var(--bg-paper)] space-y-4 max-h-[calc(100vh-170px)] overflow-y-auto custom-scrollbar">
                 <?= Csrf::field() ?>
                 
                 <div>
@@ -194,7 +194,7 @@
                                        min="0">
                             </td>
                             <td class="p-3 text-right">
-                                <form method="POST" action="/tr/furkan/delete"
+                                <form method="POST" action="/delete"
                                       onsubmit="return confirm('Bu portfolyo ögesini silmek istediğinize emin misiniz? Resim R2 sunucusundan da tamamen silinecektir.');"
                                       class="inline">
                                     <?= Csrf::field() ?>
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveOrderBtn.disabled = true;
         saveOrderBtn.textContent = 'KAYDEDİLİYOR...';
 
-        fetch('/tr/furkan/reorder', {
+        fetch('/reorder', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',

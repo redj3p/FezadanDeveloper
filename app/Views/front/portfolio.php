@@ -3,8 +3,8 @@
 $siteBase    = defined('SITE_URL') ? rtrim(SITE_URL, '/') : 'https://fezadan.org';
 $isSubdomain = $isSubdomain ?? false;   // furkan.fezadan.org mu?
 
-$lang  = 'EN';
-$isEn  = true;
+$lang  = 'TR';
+$isEn  = false;
 
 $t_all      = $isEn ? 'All Work'    : 'Tümü';
 $t_photos   = $isEn ? 'Photography' : 'Fotoğraf';
@@ -16,7 +16,7 @@ $page_title       = 'Furkan Şen — Portfolio';
 $page_description = $isEn
     ? 'Photography and illustration works by Furkan Şen.'
     : 'Furkan Şen\'in fotoğraf ve çizim çalışmaları.';
-$page_canonical   = $isSubdomain ? 'https://furkan.fezadan.org' : ($siteBase . '/furkan');
+$page_canonical   = 'https://furkan.fezadan.org';
 $og_url           = $page_canonical;
 $og_type          = 'website';
 

@@ -15,7 +15,7 @@
         <span class="hidden md:inline opacity-50">|</span>
         <a href="https://github.com/shenfurkan/Fezadan" rel="noopener" class="hover:text-[#E1C89E] hover:opacity-100 transition-all duration-300">Source Code</a>
         <span class="hidden md:inline opacity-50">|</span>
-        <a href="<?= langUrl('/furkan') ?>" class="hover:text-[#E1C89E] hover:opacity-100 transition-all duration-300">Portfolio</a>
+        <a href="https://furkan.fezadan.org" class="hover:text-[#E1C89E] hover:opacity-100 transition-all duration-300">Portfolio</a>
         <span class="hidden md:inline opacity-50">|</span>
         <a href="/rss" class="hover:text-[#E1C89E] hover:opacity-100 transition-all duration-300">RSS</a>
     </div>

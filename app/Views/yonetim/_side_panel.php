@@ -38,10 +38,6 @@ if (strpos($current_uri, '/yonetim/create-patch') !== false) {
     $page_title = "PROFİL GÜVENLİĞİ";
     $system_status = "GÜVENLİK PROTOKOLLERİ AKTİF";
     $status_color = "bg-[var(--text-accent)]";
-} elseif (strpos($current_uri, '/furkan/yonetim') !== false) {
-    $page_title = "PORTFOLYO YÖNETİMİ";
-    $system_status = "MEDYA SUNUCUSU STABİL";
-    $status_color = "bg-[var(--text-accent)]";
 } elseif (strpos($current_uri, '/yonetim/edit') !== false) {
     $page_title = "MAKALE DÜZENLEME";
     $system_status = "EDİTÖR KİLİDİ AÇILDI";
@@ -149,9 +145,6 @@ if (strpos($current_uri, '/yonetim/create-patch') !== false) {
         </a>
         <a href="/yonetim/add-note" class="nav-item <?php echo (stripos($_SERVER['REQUEST_URI'], 'add-note') !== false || stripos($_SERVER['REQUEST_URI'], 'edit-note') !== false) ? 'active' : ''; ?> py-4 px-8 font-bold uppercase tracking-widest text-sm flex items-center gap-3">
             <span class="text-lg">🗄</span> <span class="hidden md:inline">Notlar</span>
-        </a>
-        <a href="/tr/furkan/yonetim" class="nav-item <?php echo strpos($current_uri, '/furkan/yonetim') !== false ? 'active' : ''; ?> py-4 px-8 font-bold uppercase tracking-widest text-sm flex items-center gap-3">
-            <span class="text-lg">📷</span> <span class="hidden md:inline">Portfolyo</span>
         </a>
         <a href="/yonetim/logs" class="nav-item <?php echo strpos($current_uri, '/yonetim/logs') !== false ? 'active' : ''; ?> py-4 px-8 font-bold uppercase tracking-widest text-sm flex items-center gap-3">
             <span class="text-lg">!</span> <span class="hidden md:inline">Hata Kayıtları</span>

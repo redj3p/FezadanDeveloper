@@ -99,7 +99,7 @@ class App {
         // Redirect main site pages to prefixed versions if missing
         if (!$hasLangPrefix && strpos($host, 'notlar.') !== 0) {
             $pathLower = strtolower($canonicalPath);
-            $excludePrefixes = ['/yonetim', '/uploads', '/cdn', '/assets', '/scripts', '/admin', '/panel', '/dashboard'];
+            $excludePrefixes = ['/yonetim', '/uploads', '/cdn', '/assets', '/scripts', '/admin', '/panel', '/dashboard', '/furkan'];
             $isExcluded = false;
             foreach ($excludePrefixes as $prefix) {
                 if ($pathLower === $prefix || strpos($pathLower, $prefix . '/') === 0) {
@@ -120,10 +120,18 @@ class App {
             require_once ROOT . '/app/Controllers/FurkanController.php';
             $controller = new FurkanController();
 
-            // /yonetim → admin panel
-            if (isset($url[0]) && $url[0] === 'yonetim') {
+            // /yonetim or /admin -> admin panel
+            if (isset($url[0]) && ($url[0] === 'yonetim' || $url[0] === 'admin')) {
                 $method = 'yonetim';
                 call_user_func([$controller, $method]);
+            } elseif (isset($url[0]) && $url[0] === 'furkan' && isset($url[1]) && ($url[1] === 'yonetim' || $url[1] === 'admin')) {
+                call_user_func([$controller, 'yonetim']);
+            } elseif (isset($url[0]) && $url[0] === 'furkan' && isset($url[1]) && $url[1] === 'store') {
+                call_user_func([$controller, 'store']);
+            } elseif (isset($url[0]) && $url[0] === 'furkan' && isset($url[1]) && $url[1] === 'delete') {
+                call_user_func([$controller, 'delete']);
+            } elseif (isset($url[0]) && $url[0] === 'furkan' && isset($url[1]) && $url[1] === 'reorder') {
+                call_user_func([$controller, 'reorder']);
             } elseif (isset($url[0]) && $url[0] === 'store') {
                 call_user_func([$controller, 'store']);
             } elseif (isset($url[0]) && $url[0] === 'delete') {
@@ -167,6 +175,24 @@ class App {
 
             call_user_func_array([$this->controller, $this->method], $this->params);
             return;
+        }
+
+        // Main domain Furkan routes redirect to furkan subdomain
+        if (isset($url[0]) && strtolower($url[0]) === 'furkan') {
+            $redirectPath = '/';
+            if (isset($url[1]) && $url[1] !== '') {
+                $redirectPath = '/' . $url[1];
+                if (isset($url[2])) {
+                    $remaining = array_slice($url, 2);
+                    if (!empty($remaining)) {
+                        $redirectPath .= '/' . implode('/', $remaining);
+                    }
+                }
+            }
+
+            http_response_code(301);
+            header('Location: https://furkan.fezadan.org' . $redirectPath . $queryString);
+            exit;
         }
 
         $firstSegment = isset($url[0]) ? $url[0] : '';

@@ -2,6 +2,11 @@
 
 class FurkanController extends Controller
 {
+    private function adminPath(): string
+    {
+        return '/admin';
+    }
+
     private function checkAuth()
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -264,7 +269,7 @@ class FurkanController extends Controller
         $this->checkAuth();
         
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header('Location: /tr/furkan/yonetim');
+            header('Location: ' . $this->adminPath());
             exit;
         }
 
@@ -279,7 +284,7 @@ class FurkanController extends Controller
 
         if ($titleTr === '') {
             $_SESSION['error'] = 'Türkçe başlık girmek zorunludur.';
-            header('Location: /tr/furkan/yonetim');
+            header('Location: ' . $this->adminPath());
             exit;
         }
 
@@ -289,7 +294,7 @@ class FurkanController extends Controller
 
         if (empty($_FILES['image']['tmp_name'])) {
             $_SESSION['error'] = 'Görsel yüklemek zorunludur.';
-            header('Location: /tr/furkan/yonetim');
+            header('Location: ' . $this->adminPath());
             exit;
         }
 
@@ -298,7 +303,7 @@ class FurkanController extends Controller
 
         if (!$imageUrl) {
             $_SESSION['error'] = 'Görsel yüklenirken bir hata oluştu: ' . Upload::lastError();
-            header('Location: /tr/furkan/yonetim');
+            header('Location: ' . $this->adminPath());
             exit;
         }
 
@@ -312,7 +317,7 @@ class FurkanController extends Controller
             $_SESSION['error'] = 'Veritabanına kaydedilirken bir sorun oluştu.';
         }
 
-        header('Location: /tr/furkan/yonetim');
+        header('Location: ' . $this->adminPath());
         exit;
     }
 
@@ -321,7 +326,7 @@ class FurkanController extends Controller
         $this->checkAuth();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header('Location: /tr/furkan/yonetim');
+            header('Location: ' . $this->adminPath());
             exit;
         }
 
@@ -336,7 +341,7 @@ class FurkanController extends Controller
 
         if (!$item) {
             $_SESSION['error'] = 'Öge bulunamadı.';
-            header('Location: /tr/furkan/yonetim');
+            header('Location: ' . $this->adminPath());
             exit;
         }
 
@@ -361,7 +366,7 @@ class FurkanController extends Controller
             $_SESSION['error'] = 'Öge veritabanından silinirken bir hata oluştu.';
         }
 
-        header('Location: /tr/furkan/yonetim');
+        header('Location: ' . $this->adminPath());
         exit;
     }
 
