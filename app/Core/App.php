@@ -69,10 +69,12 @@ class App {
 
         // Block fallback admin paths
         $pathLower = strtolower($canonicalPath);
-        if (in_array($pathLower, ['/admin', '/panel', '/dashboard']) ||
+        if (strpos($host, 'furkan.') !== 0 && (
+            in_array($pathLower, ['/admin', '/panel', '/dashboard']) ||
             strpos($pathLower, '/admin/') === 0 ||
             strpos($pathLower, '/panel/') === 0 ||
-            strpos($pathLower, '/dashboard/') === 0) {
+            strpos($pathLower, '/dashboard/') === 0
+        )) {
             $this->render404();
         }
 
