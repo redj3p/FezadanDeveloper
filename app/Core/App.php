@@ -134,6 +134,10 @@ class App {
                 call_user_func([$controller, 'delete']);
             } elseif (isset($url[0]) && $url[0] === 'furkan' && isset($url[1]) && $url[1] === 'reorder') {
                 call_user_func([$controller, 'reorder']);
+            } elseif (isset($url[0]) && $url[0] === 'furkan' && isset($url[1]) && $url[1] === 'edit') {
+                call_user_func([$controller, 'edit']);
+            } elseif (isset($url[0]) && $url[0] === 'furkan' && isset($url[1]) && $url[1] === 'update') {
+                call_user_func([$controller, 'update']);
             } elseif (isset($url[0]) && $url[0] === 'store') {
                 call_user_func([$controller, 'store']);
             } elseif (isset($url[0]) && $url[0] === 'delete') {
@@ -192,8 +196,12 @@ class App {
                 }
             }
 
+            $hostClean = str_replace('www.', '', $_SERVER['HTTP_HOST'] ?? '');
+            $subdomainHost = strpos($hostClean, 'furkan.') === 0 ? $hostClean : 'furkan.' . $hostClean;
+            $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https://' : 'http://';
+
             http_response_code(301);
-            header('Location: https://furkan.fezadan.org' . $redirectPath . $queryString);
+            header('Location: ' . $scheme . $subdomainHost . $redirectPath . $queryString);
             exit;
         }
 

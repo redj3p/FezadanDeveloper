@@ -28,12 +28,30 @@ class FurkanController extends Controller
             $items = self::getMockItems();
         }
 
+        $authorStmt = $db->prepare("SELECT * FROM authors WHERE slug = ?");
+        $authorStmt->execute(['furkan-sen']);
+        $author = $authorStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$author) {
+            $author = [
+                'name' => 'Furkan Şen',
+                'slug' => 'furkan-sen',
+                'bio' => 'Görsel sanatçı ve fotoğrafçı. Işık, geometri ve minimalist kompozisyonlara odaklanır. Doğal yapılar ve insan müdahalesi arasındaki dinamik geçişleri yakalar.',
+                'image_url' => '',
+                'twitter' => '',
+                'instagram' => '',
+                'website' => '',
+                'email' => 'contact@fezadan.org',
+            ];
+        }
+
         $host = $_SERVER['HTTP_HOST'] ?? '';
         $isSubdomain = strpos($host, 'furkan.') === 0;
 
         $this->view('front/portfolio', [
             'items'       => $items,
             'isSubdomain' => $isSubdomain,
+            'author'      => $author,
         ]);
     }
 
@@ -321,6 +339,101 @@ class FurkanController extends Controller
         exit;
     }
 
+    public function edit()
+    {
+        $this->checkAuth();
+
+        $id = (int)($_GET['id'] ?? 0);
+        if ($id <= 0) {
+            header('Location: ' . $this->adminPath());
+            exit;
+        }
+
+        $db = Db::pdo();
+        $stmt = $db->prepare("SELECT * FROM portfolio_items WHERE id = ?");
+        $stmt->execute([$id]);
+        $item = $stmt->fetch();
+
+        if (!$item) {
+            header('Location: ' . $this->adminPath());
+            exit;
+        }
+
+        $this->view('yonetim/portfolio_edit', ['item' => $item]);
+    }
+
+    public function update()
+    {
+        $this->checkAuth();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . $this->adminPath());
+            exit;
+        }
+
+        Csrf::verify();
+
+        $id            = (int)($_POST['id'] ?? 0);
+        $titleTr       = trim($_POST['title_tr'] ?? '');
+        $titleEn       = trim($_POST['title_en'] ?? '');
+        $descriptionTr = trim($_POST['description_tr'] ?? '');
+        $descriptionEn = trim($_POST['description_en'] ?? '');
+        $type          = trim($_POST['type'] ?? 'photo');
+        $displayOrder  = (int)($_POST['display_order'] ?? 0);
+
+        if ($id <= 0 || $titleTr === '') {
+            $_SESSION['error'] = 'Geçersiz istek.';
+            header('Location: ' . $this->adminPath());
+            exit;
+        }
+
+        if (!in_array($type, ['photo', 'drawing'], true)) {
+            $type = 'photo';
+        }
+
+        $db = Db::pdo();
+        $stmt = $db->prepare("SELECT * FROM portfolio_items WHERE id = ?");
+        $stmt->execute([$id]);
+        $item = $stmt->fetch();
+
+        if (!$item) {
+            $_SESSION['error'] = 'Öge bulunamadı.';
+            header('Location: ' . $this->adminPath());
+            exit;
+        }
+
+        $imageUrl = $item['image_url'];
+
+        if (!empty($_FILES['image']['tmp_name'])) {
+            require_once ROOT . '/app/Core/Upload.php';
+            $newUrl = Upload::saveOriginalImageToR2($_FILES['image'], 'portfolio', 'port_', 20971520, $this->createSlug($titleTr));
+            if ($newUrl) {
+                if (!empty($item['image_url'])) {
+                    try {
+                        require_once ROOT . '/app/Core/R2Storage.php';
+                        $r2 = \App\Core\R2Storage::instance();
+                        $r2->deleteFile($item['image_url']);
+                    } catch (\Exception $e) {
+                        error_log("Portfolio old image R2 deletion failure: " . $e->getMessage());
+                    }
+                }
+                $imageUrl = $newUrl;
+            }
+        }
+
+        $stmt = $db->prepare("UPDATE portfolio_items SET title_tr = ?, title_en = ?, description_tr = ?, description_en = ?, image_url = ?, type = ?, display_order = ? WHERE id = ?");
+        $success = $stmt->execute([$titleTr, $titleEn === '' ? null : $titleEn, $descriptionTr === '' ? null : $descriptionTr, $descriptionEn === '' ? null : $descriptionEn, $imageUrl, $type, $displayOrder, $id]);
+
+        if ($success) {
+            $_SESSION['success'] = 'Portfolyo ögesi güncellendi.';
+        } else {
+            $_SESSION['error'] = 'Güncellenirken bir sorun oluştu.';
+        }
+
+        header('Location: ' . $this->adminPath());
+        exit;
+    }
+
     public function delete()
     {
         $this->checkAuth();
@@ -388,14 +501,36 @@ class FurkanController extends Controller
         }
 
         $db = Db::pdo();
+
+        $ids = array_keys($orders);
+        if (empty($ids)) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => true, 'updated' => 0]);
+            exit;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $db->prepare("SELECT id FROM portfolio_items WHERE id IN ($placeholders)");
+        $stmt->execute($ids);
+        $validIds = array_column($stmt->fetchAll(), 'id');
+        $validIds = array_map('intval', $validIds);
+
+        if (count($validIds) !== count($ids)) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid item IDs submitted.']);
+            exit;
+        }
+
         $db->beginTransaction();
         try {
             $stmt = $db->prepare("UPDATE portfolio_items SET display_order = ? WHERE id = ?");
             foreach ($orders as $id => $orderVal) {
+                if (!in_array((int)$id, $validIds, true)) continue;
                 $stmt->execute([(int)$orderVal, (int)$id]);
             }
             $db->commit();
-            
+
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode(['success' => true]);
             exit;

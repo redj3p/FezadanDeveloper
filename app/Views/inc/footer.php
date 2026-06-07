@@ -15,7 +15,12 @@
         <span class="hidden md:inline opacity-50">|</span>
         <a href="https://github.com/shenfurkan/Fezadan" rel="noopener" class="hover:text-[#E1C89E] hover:opacity-100 transition-all duration-300">Source Code</a>
         <span class="hidden md:inline opacity-50">|</span>
-        <a href="https://furkan.fezadan.org" class="hover:text-[#E1C89E] hover:opacity-100 transition-all duration-300">Portfolio</a>
+        <?php 
+            $host = str_replace('www.', '', $_SERVER['HTTP_HOST'] ?? '');
+            $portfolio_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https://' : 'http://';
+            $portfolio_url .= (strpos($host, 'furkan.') === 0 ? $host : 'furkan.' . $host);
+        ?>
+        <a href="<?php echo $portfolio_url; ?>" class="hover:text-[#E1C89E] hover:opacity-100 transition-all duration-300">Portfolio</a>
         <span class="hidden md:inline opacity-50">|</span>
         <a href="/rss" class="hover:text-[#E1C89E] hover:opacity-100 transition-all duration-300">RSS</a>
     </div>

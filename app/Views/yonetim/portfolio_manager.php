@@ -59,6 +59,12 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; border-left: 1px dashed rgba(109,35,35,0.2); }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(109,35,35,0.5); border-radius: 0px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(109,35,35,1); }
+
+        /* Drag over overlay animation styles */
+        #global-drag-overlay.show {
+            opacity: 1 !important;
+            pointer-events: all !important;
+        }
     </style>
 </head>
 <body class="flex h-screen w-full overflow-hidden relative">
@@ -78,15 +84,27 @@
             <form action="/store" method="POST" enctype="multipart/form-data" class="border-2 border-[var(--text-main)] p-6 shadow-[8px_8px_0px_#A31D1D] bg-[var(--bg-paper)] space-y-4 max-h-[calc(100vh-170px)] overflow-y-auto custom-scrollbar">
                 <?= Csrf::field() ?>
                 
-                <div>
-                    <label class="block font-mono text-[10px] uppercase opacity-60 mb-1">Görsel Seç (Original En Yüksek Kalite)*</label>
-                    <input type="file" name="image" accept="image/*" class="w-full text-xs font-mono border-2 border-dashed border-[var(--line-color)] p-3 cursor-pointer" required>
+                <!-- Modern Drag and Drop Area inside the form -->
+                <div class="space-y-2">
+                    <label class="block font-mono text-[10px] uppercase opacity-60 mb-1">Görsel Yükle (Original En Yüksek Kalite)*</label>
+                    
+                    <div id="form-dropzone" class="border-2 border-dashed border-[var(--line-color)] p-8 text-center cursor-pointer rounded transition-all hover:bg-[var(--line-color)]/5 flex flex-col items-center justify-center gap-2">
+                        <svg class="w-8 h-8 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        <span class="text-xs font-mono font-bold uppercase" id="dropzone-text">Görsel Seç veya Sürükle</span>
+                        <span class="text-[10px] font-mono opacity-50">(Max 20MB)</span>
+                        <input type="file" name="image" id="image-input" accept="image/*" class="hidden" required>
+                    </div>
+                    
+                    <div id="image-preview-container" class="hidden border-2 border-[var(--line-color)] p-2 bg-white relative rounded">
+                        <img id="image-preview" src="#" alt="Önizleme" class="max-h-48 w-full object-cover">
+                        <button type="button" id="remove-preview-btn" class="absolute top-2 right-2 bg-red-600 text-white font-mono font-bold text-[9px] p-1 px-2 hover:bg-black transition-all">SİL</button>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block font-mono text-[10px] uppercase opacity-60 mb-1">Başlık (TR)*</label>
-                        <input type="text" name="title_tr" class="brutalist-input font-bold text-sm" placeholder="ÖRN: Dolunay Altında" required autocomplete="off">
+                        <input type="text" name="title_tr" id="title-tr-input" class="brutalist-input font-bold text-sm" placeholder="ÖRN: Dolunay Altında" required autocomplete="off">
                     </div>
                     <div>
                         <label class="block font-mono text-[10px] uppercase opacity-60 mb-1">Başlık (EN)</label>
@@ -193,13 +211,14 @@
                                        value="<?= $item['display_order'] ?>" 
                                        min="0">
                             </td>
-                            <td class="p-3 text-right">
+                            <td class="p-3 text-right flex gap-2 justify-end">
+                                <a href="/edit?id=<?= $item['id'] ?>" class="text-[var(--text-main)] hover:bg-[var(--text-main)] hover:text-[var(--bg-paper)] px-2 py-1 transition-colors font-bold border border-[var(--line-color)]">DÜZENLE</a>
                                 <form method="POST" action="/delete"
                                       onsubmit="return confirm('Bu portfolyo ögesini silmek istediğinize emin misiniz? Resim R2 sunucusundan da tamamen silinecektir.');"
                                       class="inline">
                                     <?= Csrf::field() ?>
                                     <input type="hidden" name="id" value="<?= $item['id'] ?>">
-                                    <button type="submit" class="text-[var(--text-accent)] hover:bg-[var(--text-accent)] hover:text-white px-2 py-1 transition-colors font-bold">
+                                    <button type="submit" class="text-[var(--text-accent)] hover:bg-[var(--text-accent)] hover:text-white px-2 py-1 transition-colors font-bold border border-[var(--text-accent)]">
                                         [SİL]
                                     </button>
                                 </form>
@@ -215,7 +234,28 @@
 
     </div>
     
-</div> </main>
+    <!-- ═══════════════════════════════════════════════════════════
+         GLOBAL PAGE-LEVEL DRAG OVERLAYS
+         ═══════════════════════════════════════════════════════════ -->
+    <!-- Drag over overlay -->
+    <div id="global-drag-overlay" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[99999] flex flex-col items-center justify-center gap-4 text-[#FEF9E1] transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="border-4 border-dashed border-[var(--bg-secondary)] p-12 rounded-xl flex flex-col items-center justify-center gap-4 max-w-lg text-center m-4 pointer-events-none">
+            <svg class="w-16 h-16 animate-bounce text-[var(--bg-secondary)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <h2 class="font-syne text-2xl font-bold uppercase">Görsel Yüklemek İçin Bırakın</h2>
+            <p class="font-mono text-xs opacity-75">Bırakılan görsel otomatik olarak portfolyoya yüklenecek ve dosya adı başlık olarak ayarlanacaktır.</p>
+        </div>
+    </div>
+    
+    <!-- Upload progress spinner overlay -->
+    <div id="global-uploading-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] flex flex-col items-center justify-center gap-4 text-[#FEF9E1] hidden">
+        <div class="flex flex-col items-center justify-center gap-4">
+            <div class="w-12 h-12 border-4 border-dashed border-[var(--bg-secondary)] border-t-[var(--text-accent)] rounded-full animate-spin"></div>
+            <h3 class="font-syne text-lg font-bold uppercase tracking-wider">Portfolyo Ögesi Yükleniyor...</h3>
+            <p class="font-mono text-[10px] opacity-60">Görsel bulut sunucusuna (Cloudflare R2) kaydediliyor, lütfen pencereyi kapatmayın.</p>
+        </div>
+    </div>
+
+</main>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -280,12 +320,13 @@ document.addEventListener('DOMContentLoaded', () => {
     saveOrderBtn.addEventListener('click', () => {
         const payload = new URLSearchParams();
         const freshInputs = document.querySelectorAll('.order-input');
-        
-        // Gather all inputs
+
+        // Flat key→value structure: orders=1:10&orders=2:20
+        // Backend loops $_POST as $id => $orderVal
         freshInputs.forEach(input => {
             const id = input.getAttribute('data-id');
             const val = input.value;
-            payload.append(`orders[${id}]`, val);
+            payload.append('orders[' + id + ']', val);
         });
 
         // CSRF Token
@@ -325,6 +366,156 @@ document.addEventListener('DOMContentLoaded', () => {
             saveOrderBtn.textContent = 'Sıralamayı Kaydet';
         });
     });
+
+    /* ── Localized Form Dropzone & Preview Behaviors ── */
+    const formDropzone = document.getElementById('form-dropzone');
+    const imageInput = document.getElementById('image-input');
+    const previewContainer = document.getElementById('image-preview-container');
+    const previewImage = document.getElementById('image-preview');
+    const removePreviewBtn = document.getElementById('remove-preview-btn');
+    const titleTrInput = document.getElementById('title-tr-input');
+
+    if (formDropzone && imageInput) {
+        formDropzone.addEventListener('click', () => imageInput.click());
+
+        formDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            formDropzone.style.backgroundColor = 'rgba(109, 35, 35, 0.08)';
+        });
+
+        formDropzone.addEventListener('dragleave', () => {
+            formDropzone.style.backgroundColor = '';
+        });
+
+        formDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            formDropzone.style.backgroundColor = '';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                imageInput.files = files;
+                handleFileSelected(files[0]);
+            }
+        });
+
+        imageInput.addEventListener('change', () => {
+            if (imageInput.files.length > 0) {
+                handleFileSelected(imageInput.files[0]);
+            }
+        });
+
+        const handleFileSelected = (file) => {
+            if (!file.type.startsWith('image/')) {
+                alert('Lütfen geçerli bir görsel yükleyin.');
+                return;
+            }
+            
+            // Read and show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                formDropzone.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+
+            // Auto-fill title field if empty
+            if (titleTrInput && titleTrInput.value.trim() === '') {
+                titleTrInput.value = cleanFilenameToTitle(file.name);
+            }
+        };
+
+        removePreviewBtn.addEventListener('click', () => {
+            imageInput.value = '';
+            previewImage.src = '#';
+            previewContainer.classList.add('hidden');
+            formDropzone.classList.remove('hidden');
+        });
+    }
+
+    /* ── Clean Filename helper to Title Case ── */
+    function cleanFilenameToTitle(filename) {
+        let title = filename.substring(0, filename.lastIndexOf('.')) || filename;
+        title = title.replace(/[-_]/g, ' ');
+        title = title.replace(/\s+/g, ' ');
+        return title.trim().replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    /* ── Global Page-Level Drag and Drop Uploader ── */
+    const globalDragOverlay = document.getElementById('global-drag-overlay');
+    const uploadingOverlay = document.getElementById('global-uploading-overlay');
+    let dragCounter = 0;
+
+    if (globalDragOverlay && uploadingOverlay) {
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            if (dragCounter === 1) {
+                globalDragOverlay.classList.add('show');
+            }
+        });
+
+        window.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                globalDragOverlay.classList.remove('show');
+            }
+        });
+
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Required to trigger 'drop'
+        });
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            globalDragOverlay.classList.remove('show');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadFileDirectly(files[0]);
+            }
+        });
+
+        function uploadFileDirectly(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Lütfen geçerli bir görsel yükleyin.');
+                return;
+            }
+
+            uploadingOverlay.classList.remove('hidden');
+
+            const title = cleanFilenameToTitle(file.name);
+            const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('title_tr', title);
+            formData.append('type', 'photo'); // Default upload type
+            formData.append('display_order', 0);
+            formData.append('_csrf', csrfToken);
+
+            fetch('/store', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    throw new Error('Dosya veritabanına yüklenemedi.');
+                }
+            })
+            .catch(err => {
+                uploadingOverlay.classList.add('hidden');
+                alert('Hata oluştu: ' + err.message);
+            });
+        }
+    }
 });
 </script>
 
