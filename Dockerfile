@@ -1,8 +1,10 @@
 FROM php:8.2-apache
 
-RUN docker-php-ext-install mysqli pdo pdo_mysql
+RUN docker-php-source extract \
+    && docker-php-ext-install mysqli pdo pdo_mysql \
+    && docker-php-source delete
 
-RUN apt-get update && apt-get install -y git unzip && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y git unzip && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
