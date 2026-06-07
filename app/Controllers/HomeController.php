@@ -9,6 +9,7 @@ class HomeController extends Controller {
             // Makaleleri çek (sadece yayınlananlar) — tek sorgu (N+1 yok)
             $sql = "SELECT articles.*,
                            authors.slug AS author_slug,
+                           authors.name AS author_name,
                            GROUP_CONCAT(DISTINCT CONCAT_WS('|', c.id, c.name, c.slug) SEPARATOR ';;') AS categories_raw
                     FROM articles
                     LEFT JOIN authors ON articles.author_id = authors.id
